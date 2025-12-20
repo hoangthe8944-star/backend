@@ -82,7 +82,7 @@ public class SecurityConfig {
                         // 5. Các request còn lại (User/Artist) yêu cầu phải đăng nhập
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2
-                        .userInfoEndpoint(userInfo -> userInfo.userService(oauth2UserService))
+                        .userInfoEndpoint(userInfo -> userInfo.oidcUserService(oauth2UserService))
                         .successHandler((request, response, authentication) -> {
                             // 1. Lấy email từ kết quả Google
                             String email = (String) ((org.springframework.security.oauth2.core.user.OAuth2User) authentication
