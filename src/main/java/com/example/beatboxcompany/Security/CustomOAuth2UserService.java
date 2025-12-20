@@ -20,30 +20,30 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) {
         OAuth2User oAuth2User = super.loadUser(userRequest);
-
         String email = oAuth2User.getAttribute("email");
         String name = oAuth2User.getAttribute("name");
 
-        System.out.println(">>> Đang xử lý OAuth2 cho email: " + email);
+        System.out.println("===> OAUTH2 DEBUG: Email nhận được từ Google: " + email);
 
         try {
             Optional<User> userOptional = userRepository.findByEmail(email);
             if (userOptional.isEmpty()) {
-                System.out.println(">>> User mới! Đang tiến hành lưu vào MongoDB...");
+                System.out.println("===> OAUTH2 DEBUG: User chưa có. Đang tiến hành tạo mới...");
                 User newUser = new User();
                 newUser.setEmail(email);
                 newUser.setUsername(name);
                 newUser.setRoles(Collections.singletonList("ROLE_USER"));
                 newUser.setVerified(true);
 
-                User savedUser = userRepository.save(newUser);
-                System.out.println(">>> Đã lưu thành công User ID: " + savedUser.getId());
+                // Ép in ra kết quả lưu
+                User saved = userRepository.save(newUser);
+                System.out.println("===> OAUTH2 DEBUG: LƯU THÀNH CÔNG! ID: " + saved.getId());
             } else {
-                System.out.println(">>> User đã tồn tại trong DB, không cần lưu mới.");
+                System.out.println("===> OAUTH2 DEBUG: User đã tồn tại, không lưu đè.");
             }
         } catch (Exception e) {
-            System.err.println(">>> LỖI KHI LƯU USER VÀO DB: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("===> OAUTH2 DEBUG: LỖI NGHIÊM TRỌNG KHI LƯU DB: " + e.getMessage());
+            e.printStackTrace(); // In toàn bộ dấu vết lỗi ra Log của Render
         }
 
         return oAuth2User;
