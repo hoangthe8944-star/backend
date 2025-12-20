@@ -38,10 +38,13 @@ public class AuthController {
     // ============================================================
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody User user) {
+        // 1. Nếu email đã có trong DB
         if (userRepository.existsByEmail(user.getEmail())) {
-            return ResponseEntity.badRequest().body("Email này đã được sử dụng!");
+            return ResponseEntity.ok("Email đã tồn tại. Bạn có thể đăng nhập ngay hoặc dùng Google.");
         }
 
+        // 2. Nếu là người mới hoàn toàn -> Lưu vào DB và gửi mail xác thực cho chắc
+        // chắn
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         String token = UUID.randomUUID().toString();
         user.setVerificationToken(token);
@@ -52,7 +55,7 @@ public class AuthController {
         userRepository.save(user);
         emailService.sendVerificationEmail(user.getEmail(), token);
 
-        return ResponseEntity.ok("Đăng ký thành công! Hãy kiểm tra email để kích hoạt tài khoản.");
+        return ResponseEntity.ok("Đăng ký thành công! Hãy kiểm tra email một lần duy nhất để kích hoạt.");
     }
 
     // ============================================================

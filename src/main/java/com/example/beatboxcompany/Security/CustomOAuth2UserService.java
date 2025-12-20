@@ -22,31 +22,31 @@ public class CustomOAuth2UserService extends OidcUserService { // Kế thừa Oi
 
     @Override
     public OidcUser loadUser(OidcUserRequest userRequest) {
-        OidcUser oidcUser = super.loadUser(userRequest); // Gọi hàm gốc để lấy dữ liệu từ Google
-        
+        OidcUser oidcUser = super.loadUser(userRequest);
         String email = oidcUser.getEmail();
         String name = oidcUser.getFullName();
 
-        System.out.println("===> OIDC DEBUG: Đang xử lý đăng nhập cho email: " + email);
+        // Tìm xem email này đã có trong DB chưa
+        Optional<User> userOptional = userRepository.findByEmail(email);
 
-        try {
-            Optional<User> userOptional = userRepository.findByEmail(email);
-            if (userOptional.isEmpty()) {
-                System.out.println("===> OIDC DEBUG: User mới! Đang tạo trong MongoDB...");
-                User newUser = new User();
-                newUser.setEmail(email);
-                newUser.setUsername(name);
-                newUser.setRoles(Collections.singletonList("ROLE_USER"));
-                newUser.setVerified(true);
-                
-                userRepository.save(newUser);
-                System.out.println("===> OIDC DEBUG: LƯU DB THÀNH CÔNG!");
-            } else {
-                System.out.println("===> OIDC DEBUG: User đã tồn tại, không lưu đè.");
+        if (userOptional.isPresent()) {
+            // CỨ CÓ TRONG DB LÀ TIN TƯỞNG, CHỈ CẬP NHẬT TRẠNG THÁI VERIFIED NẾU NÓ ĐANG
+            // FALSE
+            User existingUser = userOptional.get();
+            if (!existingUser.isVerified()) {
+                existingUser.setVerified(true);
+                userRepository.save(existingUser);
             }
-        } catch (Exception e) {
-            System.err.println("===> OIDC DEBUG: LỖI KHI LƯU DB: " + e.getMessage());
-            e.printStackTrace();
+            System.out.println("Tài khoản đã tồn tại, cho phép đăng nhập ngay: " + email);
+        } else {
+            // NẾU CHƯA CÓ THÌ MỚI TẠO MỚI VÀ LƯU VÀO DB
+            User newUser = new User();
+            newUser.setEmail(email);
+            newUser.setUsername(name);
+            newUser.setRoles(Collections.singletonList("ROLE_USER"));
+            newUser.setVerified(true); // Google verify hộ rồi, ko cần làm gì thêm
+            userRepository.save(newUser);
+            System.out.println("Tạo mới tài khoản qua Google: " + email);
         }
 
         return oidcUser;
