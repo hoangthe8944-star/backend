@@ -63,6 +63,7 @@ public class SecurityConfig {
                         // 2. [QUAN TRỌNG] Cho phép API Public (Nghe nhạc, Xem danh sách Trending) không
                         // cần login
                         .requestMatchers("/api/public/**").permitAll()
+                        .requestMatchers("/api/songs/**").permitAll()
 
                         // 3. [TÙY CHỌN] Cho phép Swagger UI (nếu dùng)
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
