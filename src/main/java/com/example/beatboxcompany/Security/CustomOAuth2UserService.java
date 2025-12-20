@@ -20,19 +20,30 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) {
         OAuth2User oAuth2User = super.loadUser(userRequest);
-        
+
         String email = oAuth2User.getAttribute("email");
         String name = oAuth2User.getAttribute("name");
 
-        // Tìm hoặc Tạo mới User trong MongoDB Atlas
-        Optional<User> userOptional = userRepository.findByEmail(email);
-        if (userOptional.isEmpty()) {
-            User newUser = new User();
-            newUser.setEmail(email);
-            newUser.setUsername(name);
-            newUser.setRoles(Collections.singletonList("ROLE_USER"));
-            newUser.setVerified(true); // Google đã verify nên ta cho true luôn
-            userRepository.save(newUser);
+        System.out.println(">>> Đang xử lý OAuth2 cho email: " + email);
+
+        try {
+            Optional<User> userOptional = userRepository.findByEmail(email);
+            if (userOptional.isEmpty()) {
+                System.out.println(">>> User mới! Đang tiến hành lưu vào MongoDB...");
+                User newUser = new User();
+                newUser.setEmail(email);
+                newUser.setUsername(name);
+                newUser.setRoles(Collections.singletonList("ROLE_USER"));
+                newUser.setVerified(true);
+
+                User savedUser = userRepository.save(newUser);
+                System.out.println(">>> Đã lưu thành công User ID: " + savedUser.getId());
+            } else {
+                System.out.println(">>> User đã tồn tại trong DB, không cần lưu mới.");
+            }
+        } catch (Exception e) {
+            System.err.println(">>> LỖI KHI LƯU USER VÀO DB: " + e.getMessage());
+            e.printStackTrace();
         }
 
         return oAuth2User;
