@@ -6,10 +6,14 @@ import com.example.beatboxcompany.Mapper.UserMapper;
 import com.example.beatboxcompany.Repository.UserRepository;
 import com.example.beatboxcompany.Request.UserRegisterRequest;
 import com.example.beatboxcompany.Service.UserService;
+
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -89,6 +93,36 @@ public class UserServiceImpl implements UserService {
     public String getUserIdByEmail(String email) {
         return userRepository.findByEmail(email)
                 .map(User::getId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+    
+    @Override
+    public User processOAuthPostLogin(String email, String name) {
+        Optional<User> existUser = userRepository.findByEmail(email);
+
+        if (existUser.isPresent()) {
+            return existUser.get();
+        }
+
+        // Nếu chưa có thì tạo mới (Logic đăng ký tự động qua Google)
+        User newUser = new User();
+        newUser.setEmail(email);
+        newUser.setUsername(name);
+        newUser.setRoles(Collections.singletonList("ROLE_USER"));
+        newUser.setVerified(true); // Mặc định true vì tin tưởng Google
+        
+        return userRepository.save(newUser);
+    }
+
+    @Override
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
+
+    @Override
+    public User getCurrentUser() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 }

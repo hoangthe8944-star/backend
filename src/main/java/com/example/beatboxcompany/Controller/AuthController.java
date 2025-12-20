@@ -1,91 +1,151 @@
 package com.example.beatboxcompany.Controller;
 
 import com.example.beatboxcompany.Dto.JwtResponse;
-import com.example.beatboxcompany.Dto.UserDto;
 import com.example.beatboxcompany.Entity.User;
+import com.example.beatboxcompany.Repository.UserRepository;
 import com.example.beatboxcompany.Request.LoginRequest;
-import com.example.beatboxcompany.Request.UserRegisterRequest;
-import com.example.beatboxcompany.Security.JwtService; // Đảm bảo tên file này đúng là JwtService hoặc JwtTokenProvider
-import com.example.beatboxcompany.Service.UserService;
+import com.example.beatboxcompany.Security.JwtService;
+import com.example.beatboxcompany.Service.EmailService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RequiredArgsConstructor
+@CrossOrigin(origins = { "http://localhost:5173", "https://hoangthe8944-star.github.io" }, allowCredentials = "true")
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
-    private final JwtService jwtService; // Nếu bạn đặt tên file là JwtTokenProvider thì sửa lại ở đây
-    private final UserService userService;
+    private final JwtService jwtService;
+    private final UserRepository userRepository;
+    private final EmailService emailService;
+    private final PasswordEncoder passwordEncoder;
 
-    // ==================== LOGIN ====================
-    @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
-        try {
-            // 1. Xác thực (Sẽ ném lỗi nếu sai email/pass)
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-            );
-
-            // 2. Set Context
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-
-            // 3. Lấy User từ DB
-            User user = userService.findEntityByEmail(request.getEmail());
-
-            // 4. Tạo token
-            String token = jwtService.generateToken(user.getEmail());
-
-            // 5. Trả về kết quả
-            // Lưu ý: user.getRoles() phải trả về List<String>. Nếu Entity của bạn là getRole() (số ít), hãy sửa lại Entity.
-            JwtResponse response = new JwtResponse(
-                    token,
-                    user.getId(),
-                    user.getUsername(),
-                    user.getEmail(),
-                    user.getRoles() 
-            );
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Đăng nhập thất bại: Sai email hoặc mật khẩu");
+    // ============================================================
+    // 1. ĐĂNG KÝ (Gửi mail xác thực)
+    // ============================================================
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody User user) {
+        if (userRepository.existsByEmail(user.getEmail())) {
+            return ResponseEntity.badRequest().body("Email này đã được sử dụng!");
         }
+
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        String token = UUID.randomUUID().toString();
+        user.setVerificationToken(token);
+        user.setTokenExpiry(LocalDateTime.now().plusHours(24));
+        user.setVerified(false);
+        user.setRoles(Collections.singletonList("ROLE_USER"));
+
+        userRepository.save(user);
+        emailService.sendVerificationEmail(user.getEmail(), token);
+
+        return ResponseEntity.ok("Đăng ký thành công! Hãy kiểm tra email để kích hoạt tài khoản.");
     }
 
-    // ==================== REGISTER ====================
-    @PostMapping("/register")
-    public ResponseEntity<?> register(@Valid @RequestBody UserRegisterRequest request) {
-        try {
-            // 1. Gọi Service để xử lý (Service đã lo việc check trùng mail, mã hóa pass, lưu DB)
-            UserDto newUser = userService.registerNewUser(request);
+    // ============================================================
+    // 2. XÁC THỰC EMAIL CHÍNH
+    // ============================================================
+    @GetMapping("/verify")
+    public ResponseEntity<?> verify(@RequestParam String token) {
+        Optional<User> userOpt = userRepository.findByVerificationToken(token);
 
-            // 2. Tạo token ngay cho người dùng mới (để họ tự login luôn)
-            String token = jwtService.generateToken(newUser.getEmail());
+        if (userOpt.isEmpty())
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Token không hợp lệ.");
 
-            // 3. Trả về Response
-            JwtResponse response = new JwtResponse(
-                    token,
-                    newUser.getId(),
-                    newUser.getUsername(),
-                    newUser.getEmail(),
-                    newUser.getRoles()
-            );
-
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-
-        } catch (RuntimeException e) {
-            // Bắt lỗi email đã tồn tại từ Service ném ra
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        User user = userOpt.get();
+        if (user.getTokenExpiry().isBefore(LocalDateTime.now())) {
+            return ResponseEntity.status(HttpStatus.GONE).body("Mã xác thực đã hết hạn.");
         }
+
+        user.setVerified(true);
+        user.setVerificationToken(null);
+        user.setTokenExpiry(null);
+        userRepository.save(user);
+
+        return ResponseEntity.ok("Xác thực thành công! Giờ bạn có thể nghe nhạc.");
+    }
+
+    // ============================================================
+    // 3. ĐĂNG NHẬP (Chặn nếu chưa verify)
+    // ============================================================
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!user.isVerified()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Tài khoản chưa được xác thực email!");
+        }
+
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+
+        String token = jwtService.generateToken(user.getEmail());
+        return ResponseEntity
+                .ok(new JwtResponse(token, user.getId(), user.getUsername(), user.getEmail(), user.getRoles()));
+    }
+
+    // ============================================================
+    // 4. YÊU CẦU LIÊN KẾT EMAIL PHỤ (Phải đã đăng nhập)
+    // ============================================================
+    @PostMapping("/link-request")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> requestLink(@RequestParam String newEmail) {
+        String currentEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(currentEmail).get();
+
+        String token = UUID.randomUUID().toString();
+        user.setVerificationToken(token);
+        user.setTokenExpiry(LocalDateTime.now().plusMinutes(30)); // 30p để liên kết
+        userRepository.save(user);
+
+        // Gửi mail đến email mới
+        emailService.sendLinkEmail(newEmail, token);
+
+        return ResponseEntity.ok("Yêu cầu đã gửi. Vui lòng kiểm tra hộp thư của " + newEmail);
+    }
+
+    // ============================================================
+    // 5. XÁC NHẬN LIÊN KẾT EMAIL PHỤ
+    // ============================================================
+    @GetMapping("/link-confirm")
+    public ResponseEntity<?> confirmLink(@RequestParam String token, @RequestParam String email) {
+        Optional<User> userOpt = userRepository.findByVerificationToken(token);
+
+        if (userOpt.isEmpty())
+            return ResponseEntity.badRequest().body("Link liên kết không hợp lệ.");
+
+        User user = userOpt.get();
+        if (!user.getLinkedEmails().contains(email)) {
+            user.getLinkedEmails().add(email);
+        }
+
+        user.setVerificationToken(null);
+        userRepository.save(user);
+
+        return ResponseEntity.ok("Liên kết email " + email + " thành công!");
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser() {
+        // Lấy email từ JWT Token đã được Spring Security giải mã
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        return userRepository.findByEmail(email)
+                .map(user -> ResponseEntity.ok(user))
+                .orElse(ResponseEntity.notFound().build());
     }
 }

@@ -9,5 +9,12 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends MongoRepository<User, String> {
     Optional<User> findByEmail(String email);
+
     Optional<User> findByUsername(String username);
+
+    // Kiểm tra email đã tồn tại chưa (dùng cho Register)
+    boolean existsByEmail(String email);
+
+    // Tìm user bằng mã xác thực (dùng cho Verify)
+    Optional<User> findByVerificationToken(String token);
 }

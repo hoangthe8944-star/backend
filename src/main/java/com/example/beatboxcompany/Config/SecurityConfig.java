@@ -2,6 +2,8 @@ package com.example.beatboxcompany.Config;
 
 import com.example.beatboxcompany.Security.CustomUserDetailsService;
 import com.example.beatboxcompany.Security.JwtAuthenticationFilter;
+import com.example.beatboxcompany.Security.JwtService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,6 +22,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import com.example.beatboxcompany.Security.CustomOAuth2UserService;
 
 import java.util.List;
 
@@ -31,6 +34,8 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomUserDetailsService customUserDetailsService;
+    private final JwtService jwtService;
+    private final CustomOAuth2UserService oauth2UserService;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -68,6 +73,7 @@ public class SecurityConfig {
                         // 3. [TÙY CHỌN] Cho phép Swagger UI (nếu dùng)
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/error").permitAll()
+                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
 
                         // 4. [BẢO MẬT] Admin chỉ cho phép ROLE_ADMIN truy cập
                         // Dùng hasAuthority để khớp chính xác chuỗi "ROLE_ADMIN" trong MongoDB
@@ -75,6 +81,23 @@ public class SecurityConfig {
 
                         // 5. Các request còn lại (User/Artist) yêu cầu phải đăng nhập
                         .anyRequest().authenticated())
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo.userService(oauth2UserService))
+                        .successHandler((request, response, authentication) -> {
+                            // 1. Lấy email từ kết quả Google
+                            String email = (String) ((org.springframework.security.oauth2.core.user.OAuth2User) authentication
+                                    .getPrincipal()).getAttributes().get("email");
+
+                            // 2. Tạo JWT Token
+                            String token = jwtService.generateToken(email);
+
+                            // 3. Redirect về Frontend (GitHub Pages) kèm Token
+                            // Dùng HashRouter (#) để tránh lỗi 404 GitHub Pages
+                            String targetUrl = "https://hoangthe8944-star.github.io/boxonline/#/login-success?token="
+                                    + token;
+
+                            response.sendRedirect(targetUrl);
+                        }))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

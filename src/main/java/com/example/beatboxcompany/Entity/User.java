@@ -1,16 +1,17 @@
 package com.example.beatboxcompany.Entity;
 
+// <--- Import cái này
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import lombok.NoArgsConstructor; // <--- Import cái này
-import lombok.AllArgsConstructor;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Builder
 @Data
-@NoArgsConstructor  // <--- QUAN TRỌNG: Tạo public User() {} để sửa lỗi trong Mapper
+@NoArgsConstructor // <--- QUAN TRỌNG: Tạo public User() {} để sửa lỗi trong Mapper
 @AllArgsConstructor
 @Document(collection = "users")
 public class User {
@@ -19,11 +20,17 @@ public class User {
     private String username;
     private String email;
     private String password;
-    
+
     // ĐỔI TỪ role -> roles
-    private List<String> roles; 
+    private List<String> roles;
 
     private String avatarUrl;
     private List<String> likedSongs;
     private List<String> followedArtists;
+
+    // Xác thực người dùng qua email
+    private boolean isVerified = false; // Trạng thái xác thực
+    private String verificationToken; // Mã xác thực ngẫu nhiên
+    private LocalDateTime tokenExpiry; // Thời gian hết hạn mã
+    private List<String> linkedEmails = new ArrayList<>();
 }
