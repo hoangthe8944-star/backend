@@ -81,6 +81,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
         } catch (Exception e) {
+            System.err.println("===> Filter Debug: LỖI XÁC THỰC: " + e.getMessage());
             // Nếu token lỗi, hết hạn hoặc không parse được, ta cứ cho qua filter
             // Spring Security ở phía sau sẽ chặn lại trả về 403 nếu API yêu cầu quyền.
             // Có thể log lỗi ở đây nếu muốn: e.printStackTrace();
