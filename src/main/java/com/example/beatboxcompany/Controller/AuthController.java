@@ -139,22 +139,37 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser() {
         try {
-            String email = SecurityContextHolder.getContext().getAuthentication().getName();
-            User user = userRepository.findByEmail(email).orElseThrow();
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String searchKey = auth.getName(); // Đây là giá trị lấy từ Token
 
-            // ✅ CHỈ trả về thông tin cần thiết, tránh trả về cả mảng LikedSongs/Playlists
-            // to đùng
-            Map<String, Object> response = new HashMap<>();
-            response.put("id", user.getId());
-            response.put("email", user.getEmail());
-            response.put("username", user.getUsername());
-            response.put("roles", user.getRoles());
-            response.put("isVerified", user.isVerified());
+            System.out.println("===> USER CONTROLLER DEBUG: Đang tìm User với Key: [" + searchKey + "]");
 
-            return ResponseEntity.ok(response);
+            // Tìm thử theo Email
+            Optional<User> userOpt = userRepository.findByEmail(searchKey);
+
+            // Nếu không thấy, hãy thử tìm theo Username (đề phòng getName() trả về
+            // username)
+            if (userOpt.isEmpty()) {
+                userOpt = userRepository.findByUsername(searchKey);
+            }
+
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+                Map<String, Object> userInfo = new HashMap<>();
+                userInfo.put("id", user.getId());
+                userInfo.put("email", user.getEmail());
+                userInfo.put("username", user.getUsername());
+                userInfo.put("roles", user.getAuthorities());
+                userInfo.put("isVerified", user.isVerified());
+                return ResponseEntity.ok(userInfo);
+            } else {
+                System.err.println("===> USER CONTROLLER DEBUG: Không tìm thấy bất kỳ User nào khớp với: " + searchKey);
+                return ResponseEntity.status(404).body("Không tìm thấy thông tin người dùng trong hệ thống.");
+            }
+
         } catch (Exception e) {
-            e.printStackTrace(); // In lỗi thật sự ra log Render
-            return ResponseEntity.status(500).body("Lỗi xử lý dữ liệu: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Lỗi máy chủ: " + e.getMessage());
         }
     }
 }

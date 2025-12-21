@@ -80,10 +80,18 @@ public class SecurityConfig {
                         .userInfoEndpoint(u -> u.oidcUserService(oauth2UserService))
                         .successHandler((request, response, authentication) -> {
                             OidcUser oidcUser = (OidcUser) authentication.getPrincipal();
-                            String token = jwtService.generateToken(oidcUser.getEmail());
-                            // Chuyển hướng về trang Success trên React
-                            response.sendRedirect(
-                                    "https://hoangthe8944-star.github.io/boxonline/#/login-success?token=" + token);
+
+                            // ✅ PHẢI lấy Email, đừng lấy oidcUser.getName() vì nó có thể trả về Google ID
+                            // (dãy số)
+                            String email = oidcUser.getEmail();
+
+                            System.out.println("===> JWT DEBUG: Đang tạo Token cho Email: " + email);
+
+                            String token = jwtService.generateToken(email);
+
+                            String targetUrl = "https://hoangthe8944-star.github.io/boxonline/#/login-success?token="
+                                    + token;
+                            response.sendRedirect(targetUrl);
                         }))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
