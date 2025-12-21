@@ -1,8 +1,11 @@
 package com.example.beatboxcompany.Dto;
 
 import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.util.List;
 
+@NoArgsConstructor
 @Data
 public class UserDto {
     private String id;
@@ -19,13 +22,13 @@ public class UserDto {
     // Nếu bạn cần Constructor rỗng hoặc full tham số, 
     // @Data đôi khi chưa đủ nếu có logic phức tạp, 
     // nhưng cơ bản thế này là ổn.
-    public UserDto() {} // Constructor mặc định cho Hibernate/Jackson
+    // public UserDto() {} // Constructor mặc định cho Hibernate/Jackson
     
-    // Constructor tiện lợi để convert từ Entity sang DTO
-    public UserDto(String id, String username, String email, List<String> roles) {
-        this.id = id;
-        this.username = username;
-        this.email = email;
-        this.roles = roles;
-    }
+    // // Constructor tiện lợi để convert từ Entity sang DTO
+    // public UserDto(String id, String username, String email, List<String> roles) {
+    //     this.id = id;
+    //     this.username = username;
+    //     this.email = email;
+    //     this.roles = roles;
+    // }
 }

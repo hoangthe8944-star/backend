@@ -135,13 +135,26 @@ public class AuthController {
         return ResponseEntity.ok("Liên kết email " + email + " thành công!");
     }
 
+    // UserController.java
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser() {
-        // Lấy email từ JWT Token đã được Spring Security giải mã
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        try {
+            String email = SecurityContextHolder.getContext().getAuthentication().getName();
+            User user = userRepository.findByEmail(email).orElseThrow();
 
-        return userRepository.findByEmail(email)
-                .map(user -> ResponseEntity.ok(user))
-                .orElse(ResponseEntity.notFound().build());
+            // ✅ CHỈ trả về thông tin cần thiết, tránh trả về cả mảng LikedSongs/Playlists
+            // to đùng
+            Map<String, Object> response = new HashMap<>();
+            response.put("id", user.getId());
+            response.put("email", user.getEmail());
+            response.put("username", user.getUsername());
+            response.put("roles", user.getRoles());
+            response.put("isVerified", user.isVerified());
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            e.printStackTrace(); // In lỗi thật sự ra log Render
+            return ResponseEntity.status(500).body("Lỗi xử lý dữ liệu: " + e.getMessage());
+        }
     }
 }
