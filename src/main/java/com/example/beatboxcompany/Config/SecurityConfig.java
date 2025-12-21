@@ -99,6 +99,11 @@ public class SecurityConfig {
                             response.sendRedirect(targetUrl);
                         }))
                 .authenticationProvider(authenticationProvider())
+                .exceptionHandling(e -> e
+                        // Nếu chưa đăng nhập mà gọi API, chỉ trả về 401 Unauthorized, KHÔNG REDIRECT
+                        .authenticationEntryPoint(
+                                new org.springframework.security.web.authentication.HttpStatusEntryPoint(
+                                        org.springframework.http.HttpStatus.UNAUTHORIZED)))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
