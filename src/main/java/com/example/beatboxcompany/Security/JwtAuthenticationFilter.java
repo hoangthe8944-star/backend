@@ -27,8 +27,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain
-    ) throws ServletException, IOException {
+            @NonNull FilterChain filterChain) throws ServletException, IOException {
 
         // 1. Bỏ qua các đường dẫn không cần Token (Login/Register/Swagger)
         // Việc này giúp tối ưu hiệu năng, không cần parse token cho trang đăng nhập
@@ -50,31 +49,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // 3. Cắt chuỗi để lấy Token
         jwt = authHeader.substring(7);
-        
+
         try {
             // 4. Lấy Email từ Token
             userEmail = jwtService.extractUsername(jwt);
 
             // 5. Nếu có Email và chưa được xác thực trong Context
             if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                
-                // Load thông tin user từ DB
                 UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
 
-                // --- ĐIỂM SỬA QUAN TRỌNG NHẤT ---
-                // Truyền vào userDetails.getUsername() (là String) để khớp với JwtService mới sửa
+                // Kiểm tra danh sách quyền trước khi khởi tạo
+                var authorities = userDetails.getAuthorities();
+                if (authorities == null || authorities.isEmpty()) {
+                    System.err.println(
+                            "===> Filter Debug: User có email " + userEmail + " NHƯNG KHÔNG CÓ QUYỀN (ROLES)!");
+                }
+
                 if (jwtService.isTokenValid(jwt, userDetails.getUsername())) {
-                    
+                    // Tạo token xác thực
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails,
-                            null,
-                            userDetails.getAuthorities()
-                    );
+                            "N/A", // Thử để chuỗi tạm thay vì null nếu vẫn lỗi
+                            authorities);
 
                     // Thêm thông tin chi tiết (IP, Session ID...) vào Authentication
                     authToken.setDetails(
-                            new WebAuthenticationDetailsSource().buildDetails(request)
-                    );
+                            new WebAuthenticationDetailsSource().buildDetails(request));
 
                     // Lưu vào SecurityContext -> Request này đã được xác thực!
                     SecurityContextHolder.getContext().setAuthentication(authToken);
