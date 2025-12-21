@@ -7,6 +7,7 @@ import com.example.beatboxcompany.Security.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -17,7 +18,9 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -60,50 +63,28 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // 1. Dùng IF_REQUIRED để giữ session tạm cho Google OAuth2
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+
                 .authorizeHttpRequests(auth -> auth
-                        // 1. Cho phép Login/Register
-                        .requestMatchers("/api/auth/**").permitAll()
-
-                        // 2. [QUAN TRỌNG] Cho phép API Public (Nghe nhạc, Xem danh sách Trending) không
-                        // cần login
-                        .requestMatchers("/api/public/**").permitAll()
-                        .requestMatchers("/api/songs/**").permitAll()
-
-                        // 3. [TÙY CHỌN] Cho phép Swagger UI (nếu dùng)
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        .requestMatchers("/error").permitAll()
-                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
-
-                        // 4. [BẢO MẬT] Admin chỉ cho phép ROLE_ADMIN truy cập
-                        // Dùng hasAuthority để khớp chính xác chuỗi "ROLE_ADMIN" trong MongoDB
+                        .requestMatchers("/api/auth/**", "/api/public/**", "/api/songs/**").permitAll()
+                        .requestMatchers("/oauth2/**", "/login/oauth2/**", "/error", "/favicon.ico").permitAll()
                         .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
-
-                        // 5. Các request còn lại (User/Artist) yêu cầu phải đăng nhập
                         .anyRequest().authenticated())
-                .oauth2Login(oauth2 -> oauth2
-                        .userInfoEndpoint(userInfo -> userInfo.oidcUserService(oauth2UserService))
-                        .successHandler((request, response, authentication) -> {
-                            // 1. Lấy email từ kết quả Google
-                            String email = (String) ((org.springframework.security.oauth2.core.user.OAuth2User) authentication
-                                    .getPrincipal()).getAttributes().get("email");
 
-                            // 2. Tạo JWT Token
-                            String token = jwtService.generateToken(email);
-
-                            // 3. Redirect về Frontend (GitHub Pages) kèm Token
-                            // Dùng HashRouter (#) để tránh lỗi 404 GitHub Pages
-                            String targetUrl = "https://hoangthe8944-star.github.io/boxonline/#/login-success?token="
-                                    + token;
-
-                            response.sendRedirect(targetUrl);
-                        }))
-                .authenticationProvider(authenticationProvider())
+                // ✅ QUAN TRỌNG: Nếu API lỗi, trả về 401 chứ KHÔNG chuyển hướng sang Google
                 .exceptionHandling(e -> e
-                        // Nếu chưa đăng nhập mà gọi API, chỉ trả về 401 Unauthorized, KHÔNG REDIRECT
-                        .authenticationEntryPoint(
-                                new org.springframework.security.web.authentication.HttpStatusEntryPoint(
-                                        org.springframework.http.HttpStatus.UNAUTHORIZED)))
+                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(u -> u.oidcUserService(oauth2UserService))
+                        .successHandler((request, response, authentication) -> {
+                            OidcUser oidcUser = (OidcUser) authentication.getPrincipal();
+                            String token = jwtService.generateToken(oidcUser.getEmail());
+                            // Chuyển hướng về trang Success trên React
+                            response.sendRedirect(
+                                    "https://hoangthe8944-star.github.io/boxonline/#/login-success?token=" + token);
+                        }))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

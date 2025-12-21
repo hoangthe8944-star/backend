@@ -34,54 +34,41 @@ public class AuthController {
     private final EmailService emailService;
 
     // 1. ĐĂNG KÝ (Instant Auth - Vào luôn không cần check mail)
+    // 1. ĐĂNG KÝ: Lưu DB và bắt xác thực
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody User user) {
         if (userRepository.existsByEmail(user.getEmail())) {
-            return ResponseEntity.badRequest().body("Email này đã được sử dụng!");
+            return ResponseEntity.badRequest().body("Email đã tồn tại!");
         }
-
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setVerified(true); // ✅ Tự động xác thực
-        user.setRoles(Collections.singletonList("ROLE_USER"));
-        User savedUser = userRepository.save(user);
+        user.setVerified(false); // ✅ Bắt buộc xác thực
 
-        String token = jwtService.generateToken(savedUser.getEmail());
+        String token = UUID.randomUUID().toString();
+        user.setVerificationToken(token);
+        user.setTokenExpiry(LocalDateTime.now().plusHours(24));
 
-        // ✅ Trả về đầy đủ tham số cho DTO
-        return ResponseEntity.ok(new JwtResponse(
-                token,
-                savedUser.getId(),
-                savedUser.getUsername(),
-                savedUser.getEmail(),
-                savedUser.getRoles(),
-                true));
+        userRepository.save(user);
+        emailService.sendVerificationEmail(user.getEmail(), token); // Gửi mail qua Resend
+
+        return ResponseEntity.ok("Đăng ký thành công! Vui lòng kiểm tra email để kích hoạt.");
     }
 
-    // 2. ĐĂNG NHẬP
+    // 2. ĐĂNG NHẬP: Chặn nếu chưa xác thực
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
-        try {
-            User user = userRepository.findByEmail(request.getEmail())
-                    .orElseThrow(() -> new RuntimeException("Email không tồn tại!"));
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-            // Xác thực mật khẩu
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
-
-            String token = jwtService.generateToken(user.getEmail());
-
-            // ✅ SỬA TẠI ĐÂY: Thêm tham số 'true' (isVerified) vào cuối để khớp Constructor
-            return ResponseEntity.ok(new JwtResponse(
-                    token,
-                    user.getId(),
-                    user.getUsername(),
-                    user.getEmail(),
-                    user.getRoles(),
-                    true));
-
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Sai email hoặc mật khẩu!");
+        if (!user.isVerified()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Tài khoản chưa xác thực email!");
         }
+
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+
+        String token = jwtService.generateToken(user.getEmail());
+        return ResponseEntity
+                .ok(new JwtResponse(token, user.getId(), user.getUsername(), user.getEmail(), user.getRoles(), true));
     }
 
     // ============================================================
