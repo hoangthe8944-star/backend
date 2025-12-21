@@ -32,20 +32,20 @@ public class CustomUserDetailsService implements UserDetailsService {
         // ------------------------------------------------
 
         // 2. Map Roles từ String -> GrantedAuthority
-        // Lưu ý: Trong DB phải là "ROLE_ADMIN", nếu chỉ là "ADMIN" thì dòng này phải tự thêm "ROLE_"
+        // Lưu ý: Trong DB phải là "ROLE_ADMIN", nếu chỉ là "ADMIN" thì dòng này phải tự
+        // thêm "ROLE_"
         List<GrantedAuthority> authorities = user.getRoles().stream()
-                .map(role -> new SimpleGrantedAuthority(role)) 
+                .map(role -> new SimpleGrantedAuthority(role))
                 .collect(Collectors.toList());
 
         // 3. Trả về UserDetails với đầy đủ cờ kích hoạt (Enabled = true)
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),
-                user.getPassword(),
+                user.getPassword() != null ? user.getPassword() : "",
                 true, // enabled (Tài khoản đã kích hoạt)
                 true, // accountNonExpired (Tài khoản chưa hết hạn)
                 true, // credentialsNonExpired (Mật khẩu chưa hết hạn)
                 true, // accountNonLocked (Tài khoản không bị khóa)
-                authorities
-        );
+                user.getAuthorities());
     }
 }
