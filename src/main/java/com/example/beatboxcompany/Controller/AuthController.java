@@ -30,32 +30,58 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final UserRepository userRepository;
-    private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
-    // ============================================================
-    // 1. ĐĂNG KÝ (Gửi mail xác thực)
-    // ============================================================
+    // 1. ĐĂNG KÝ (Instant Auth - Vào luôn không cần check mail)
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody User user) {
-        // 1. Nếu email đã có trong DB
         if (userRepository.existsByEmail(user.getEmail())) {
-            return ResponseEntity.ok("Email đã tồn tại. Bạn có thể đăng nhập ngay hoặc dùng Google.");
+            return ResponseEntity.badRequest().body("Email này đã được sử dụng!");
         }
 
-        // 2. Nếu là người mới hoàn toàn -> Lưu vào DB và gửi mail xác thực cho chắc
-        // chắn
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        String token = UUID.randomUUID().toString();
-        user.setVerificationToken(token);
-        user.setTokenExpiry(LocalDateTime.now().plusHours(24));
-        user.setVerified(false);
+        user.setVerified(true); // ✅ Tự động xác thực
         user.setRoles(Collections.singletonList("ROLE_USER"));
+        User savedUser = userRepository.save(user);
 
-        userRepository.save(user);
-        emailService.sendVerificationEmail(user.getEmail(), token);
+        String token = jwtService.generateToken(savedUser.getEmail());
 
-        return ResponseEntity.ok("Đăng ký thành công! Hãy kiểm tra email một lần duy nhất để kích hoạt.");
+        // ✅ Trả về đầy đủ tham số cho DTO
+        return ResponseEntity.ok(new JwtResponse(
+                token,
+                savedUser.getId(),
+                savedUser.getUsername(),
+                savedUser.getEmail(),
+                savedUser.getRoles(),
+                true));
+    }
+
+    // 2. ĐĂNG NHẬP
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
+        try {
+            User user = userRepository.findByEmail(request.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Email không tồn tại!"));
+
+            // Xác thực mật khẩu
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+
+            String token = jwtService.generateToken(user.getEmail());
+
+            // ✅ SỬA TẠI ĐÂY: Thêm tham số 'true' (isVerified) vào cuối để khớp Constructor
+            return ResponseEntity.ok(new JwtResponse(
+                    token,
+                    user.getId(),
+                    user.getUsername(),
+                    user.getEmail(),
+                    user.getRoles(),
+                    true));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Sai email hoặc mật khẩu!");
+        }
     }
 
     // ============================================================
@@ -79,26 +105,6 @@ public class AuthController {
         userRepository.save(user);
 
         return ResponseEntity.ok("Xác thực thành công! Giờ bạn có thể nghe nhạc.");
-    }
-
-    // ============================================================
-    // 3. ĐĂNG NHẬP (Chặn nếu chưa verify)
-    // ============================================================
-    @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        if (!user.isVerified()) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Tài khoản chưa được xác thực email!");
-        }
-
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
-
-        String token = jwtService.generateToken(user.getEmail());
-        return ResponseEntity
-                .ok(new JwtResponse(token, user.getId(), user.getUsername(), user.getEmail(), user.getRoles()));
     }
 
     // ============================================================

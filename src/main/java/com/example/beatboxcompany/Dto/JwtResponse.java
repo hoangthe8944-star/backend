@@ -1,32 +1,35 @@
 package com.example.beatboxcompany.Dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 
-@Data // Tự động sinh Getter, Setter, Constructor...
+@Data
+@NoArgsConstructor  // Bắt buộc phải có để Jackson có thể chuyển đổi JSON
+@AllArgsConstructor // Tạo constructor có đầy đủ tất cả các tham số
 public class JwtResponse {
     
-    // JWT Token mà Client cần lưu trữ và gửi kèm trong các Request sau này
     private String token; 
-    
-    // Loại token (mặc định là "Bearer")
     private String type = "Bearer"; 
-    
-    // Thông tin cơ bản của người dùng
     private String id;
     private String username;
     private String email;
     
-    // Danh sách các vai trò (Roles) của người dùng (ví dụ: ["ROLE_USER", "ROLE_ARTIST"])
-    private List<String> role; 
+    // Đổi tên thành 'roles' để khớp với Frontend authapi.ts
+    private List<String> roles; 
+    
+    // Thêm trường này để Frontend biết user đã được phép nghe nhạc chưa
+    private boolean isVerified;
 
-    // Constructor (để tiện tạo đối tượng sau khi đăng nhập)
-    public JwtResponse(String accessToken, String id, String username, String email, List<String> roles) {
+    // Constructor tùy chỉnh (nếu bạn không muốn dùng @AllArgsConstructor)
+    public JwtResponse(String accessToken, String id, String username, String email, List<String> roles, boolean isVerified) {
         this.token = accessToken;
         this.id = id;
         this.username = username;
         this.email = email;
-        this.role = roles;
+        this.roles = roles;
+        this.isVerified = isVerified;
     }
 }
