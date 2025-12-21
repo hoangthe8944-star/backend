@@ -3,6 +3,8 @@ package com.example.beatboxcompany.Controller;
 import com.example.beatboxcompany.Dto.CommentDto;
 import com.example.beatboxcompany.Dto.PlaylistDto;
 import com.example.beatboxcompany.Dto.UserDto;
+import com.example.beatboxcompany.Entity.User;
+import com.example.beatboxcompany.Repository.UserRepository;
 import com.example.beatboxcompany.Request.CommentRequest;
 import com.example.beatboxcompany.Request.PlaylistRequest;
 
@@ -11,7 +13,12 @@ import com.example.beatboxcompany.Service.PlaylistService;
 import com.example.beatboxcompany.Service.SongService; // Import Interface
 import com.example.beatboxcompany.Service.UserService;
 
+import lombok.RequiredArgsConstructor;
+
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,16 +36,19 @@ public class UserController {
     private final PlaylistService playlistService;
     private final CommentService commentService;
     private final SongService songService; // SỬA: Dùng Interface
+    private final UserRepository userRepository;
 
     public UserController(
             UserService userService,
             PlaylistService playlistService,
             CommentService commentService,
+            UserRepository userRepository,
             SongService songService) { // SỬA: Inject Interface
         this.userService = userService;
         this.playlistService = playlistService;
         this.commentService = commentService;
         this.songService = songService;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -47,11 +57,12 @@ public class UserController {
      */
     private String getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName(); 
-        
+        String email = authentication.getName();
+
         // Gọi UserService để tìm ID từ Email (Bạn cần đảm bảo UserService có hàm này)
-        // Nếu UserService trả về DTO, hãy lấy .getId(). Nếu trả về Entity, cũng lấy .getId()
-        return userService.getUserIdByEmail(email); 
+        // Nếu UserService trả về DTO, hãy lấy .getId(). Nếu trả về Entity, cũng lấy
+        // .getId()
+        return userService.getUserIdByEmail(email);
     }
 
     // --- 1. Quản lý Hồ sơ & Tương tác ---
@@ -118,4 +129,42 @@ public class UserController {
         commentService.deleteComment(commentId, userId);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser() {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String searchKey = auth.getName(); // Đây là giá trị lấy từ Token
+
+            System.out.println("===> USER CONTROLLER DEBUG: Đang tìm User với Key: [" + searchKey + "]");
+
+            // Tìm thử theo Email
+            Optional<User> userOpt = userRepository.findByEmail(searchKey);
+
+            // Nếu không thấy, hãy thử tìm theo Username (đề phòng getName() trả về
+            // username)
+            if (userOpt.isEmpty()) {
+                userOpt = userRepository.findByUsername(searchKey);
+            }
+
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+                Map<String, Object> userInfo = new HashMap<>();
+                userInfo.put("id", user.getId());
+                userInfo.put("email", user.getEmail());
+                userInfo.put("username", user.getUsername());
+                userInfo.put("roles", user.getAuthorities());
+                userInfo.put("isVerified", user.isVerified());
+                return ResponseEntity.ok(userInfo);
+            } else {
+                System.err.println("===> USER CONTROLLER DEBUG: Không tìm thấy bất kỳ User nào khớp với: " + searchKey);
+                return ResponseEntity.status(404).body("Không tìm thấy thông tin người dùng trong hệ thống.");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Lỗi máy chủ: " + e.getMessage());
+        }
+    }
+
 }

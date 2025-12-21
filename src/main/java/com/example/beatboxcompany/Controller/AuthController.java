@@ -136,40 +136,4 @@ public class AuthController {
     }
 
     // UserController.java
-    @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser() {
-        try {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            String searchKey = auth.getName(); // Đây là giá trị lấy từ Token
-
-            System.out.println("===> USER CONTROLLER DEBUG: Đang tìm User với Key: [" + searchKey + "]");
-
-            // Tìm thử theo Email
-            Optional<User> userOpt = userRepository.findByEmail(searchKey);
-
-            // Nếu không thấy, hãy thử tìm theo Username (đề phòng getName() trả về
-            // username)
-            if (userOpt.isEmpty()) {
-                userOpt = userRepository.findByUsername(searchKey);
-            }
-
-            if (userOpt.isPresent()) {
-                User user = userOpt.get();
-                Map<String, Object> userInfo = new HashMap<>();
-                userInfo.put("id", user.getId());
-                userInfo.put("email", user.getEmail());
-                userInfo.put("username", user.getUsername());
-                userInfo.put("roles", user.getAuthorities());
-                userInfo.put("isVerified", user.isVerified());
-                return ResponseEntity.ok(userInfo);
-            } else {
-                System.err.println("===> USER CONTROLLER DEBUG: Không tìm thấy bất kỳ User nào khớp với: " + searchKey);
-                return ResponseEntity.status(404).body("Không tìm thấy thông tin người dùng trong hệ thống.");
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body("Lỗi máy chủ: " + e.getMessage());
-        }
-    }
 }
