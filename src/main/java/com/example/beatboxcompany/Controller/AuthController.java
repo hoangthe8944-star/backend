@@ -135,5 +135,28 @@ public class AuthController {
         return ResponseEntity.ok("Liên kết email " + email + " thành công!");
     }
 
-    // UserController.java
+    // AuthController.java
+
+    @PostMapping("/set-password")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> setPassword(@RequestBody Map<String, String> request) {
+        String newPassword = request.get("password");
+
+        // 1. Lấy email người dùng hiện tại từ SecurityContext
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        // 2. Tìm user trong DB
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+
+        // 3. Kiểm tra nếu đã có mật khẩu rồi (tùy chọn bảo mật)
+        // if (user.getPassword() != null) return ResponseEntity.badRequest().body("Tài
+        // khoản đã có mật khẩu");
+
+        // 4. Mã hóa và lưu mật khẩu
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        return ResponseEntity.ok("Thiết lập mật khẩu thành công! Bây giờ bạn có thể đăng nhập bằng email.");
+    }
 }
