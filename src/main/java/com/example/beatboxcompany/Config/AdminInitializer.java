@@ -28,6 +28,9 @@ public class AdminInitializer implements CommandLineRunner {
                     // .name("System Admin")
                     .email("admin@store.com")
                     .roles(List.of("ROLE_ADMIN"))
+                    .verified(true)
+                    .verificationToken(null)
+                    .tokenExpiry(null)
                     // .address("Head Office")
                     // .phoneNumber("0000000000")
                     .build();
