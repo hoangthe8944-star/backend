@@ -32,11 +32,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 1. Bỏ qua các đường dẫn không cần Token (Login/Register/Swagger)
         // Việc này giúp tối ưu hiệu năng, không cần parse token cho trang đăng nhập
         String path = request.getRequestURI();
-        if (path.startsWith("/api/auth/") || path.contains("swagger") || path.contains("v3/api-docs")) {
+        if (path.equals("/api/auth/login") ||
+                path.equals("/api/auth/register") ||
+                path.equals("/api/auth/verify") ||
+                path.contains("swagger") ||
+                path.contains("v3/api-docs")) {
+
             filterChain.doFilter(request, response);
             return;
         }
-
         // 2. Lấy Header Authorization
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
