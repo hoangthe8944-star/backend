@@ -1,5 +1,7 @@
 package com.example.beatboxcompany.Controller;
 
+import java.util.Map;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,7 +21,12 @@ public class LyricsController {
     private final LyricsService lyricsService;
 
     @GetMapping("/{songId}")
-    public LyricsDto getLyrics(@PathVariable String songId) {
-        return lyricsService.getLyricsBySongId(songId);
+    public ResponseEntity<?> getLyrics(@PathVariable String songId) {
+        try {
+            return ResponseEntity.ok(lyricsService.getLyricsBySongId(songId));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(Map.of("error", "Không thể tải lyrics"));
+        }
     }
 }

@@ -47,16 +47,24 @@ public class LyricsServiceImpl implements LyricsService {
     // ===== LRCLIB =====
     private LyricsDto tryLrc(Song song) {
         try {
+            if (song.getTitle() == null || song.getArtistName() == null) {
+                return null;
+            }
+
             String url = "https://lrclib.net/api/get?"
                     + "track_name=" + URLEncoder.encode(song.getTitle(), StandardCharsets.UTF_8)
                     + "&artist_name=" + URLEncoder.encode(song.getArtistName(), StandardCharsets.UTF_8);
 
-            Map res = restTemplate.getForObject(url, Map.class);
-            if (res == null || res.get("syncedLyrics") == null) return null;
+            Map<String, Object> res = restTemplate.getForObject(url, Map.class);
+
+            if (res == null || res.get("syncedLyrics") == null) {
+                return null;
+            }
 
             return parseLrc((String) res.get("syncedLyrics"));
 
         } catch (Exception e) {
+            System.err.println("LRCLIB error: " + e.getMessage());
             return null;
         }
     }
@@ -66,17 +74,26 @@ public class LyricsServiceImpl implements LyricsService {
         LyricsDto dto = new LyricsDto();
         List<LyricsLine> lines = new ArrayList<>();
 
-        if (spotifyId == null) {
-            dto.setLines(List.of(new LyricsLine(0.0, "Không có lời bài hát")));
+        if (spotifyId == null || spotifyId.isBlank()) {
+            lines.add(new LyricsLine(null, "Không có lời bài hát"));
+            dto.setLines(lines);
             return dto;
         }
 
-        String url = "https://api.lyricstify.vercel.app/api/lyrics/" + spotifyId;
-        Map res = restTemplate.getForObject(url, Map.class);
+        try {
+            String url = "https://api.lyricstify.vercel.app/api/lyrics/" + spotifyId;
+            Map<String, Object> res = restTemplate.getForObject(url, Map.class);
 
-        String lyrics = (String) res.get("lyrics");
-        for (String line : lyrics.split("\n")) {
-            lines.add(new LyricsLine(null, line));
+            if (res == null || res.get("lyrics") == null) {
+                lines.add(new LyricsLine(null, "Không tìm thấy lời bài hát"));
+            } else {
+                String lyrics = (String) res.get("lyrics");
+                for (String line : lyrics.split("\n")) {
+                    lines.add(new LyricsLine(null, line));
+                }
+            }
+        } catch (Exception e) {
+            lines.add(new LyricsLine(null, "Lỗi tải lời bài hát"));
         }
 
         dto.setLines(lines);
