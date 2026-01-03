@@ -1,5 +1,6 @@
 package com.example.beatboxcompany.Service.Impl;
 
+import com.example.beatboxcompany.Dto.LyricsDto;
 import com.example.beatboxcompany.Dto.SongDto;
 import com.example.beatboxcompany.Dto.UploadResultDto;
 import com.example.beatboxcompany.Entity.Album;
@@ -522,4 +523,5 @@ public class SongServiceImpl implements SongService {
                 .replaceAll("[\\[\\](){}]", "")
                 .trim();
     }
+
 }

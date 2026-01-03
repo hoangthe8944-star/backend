@@ -47,4 +47,5 @@ public interface SongService {
         void recordSongPlayback(String songId);
 
         List<SongDto> getRecentlyPlayedSongs(int limit);
+
 }
