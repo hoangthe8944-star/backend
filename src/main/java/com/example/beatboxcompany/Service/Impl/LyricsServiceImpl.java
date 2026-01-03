@@ -1,121 +1,65 @@
 package com.example.beatboxcompany.Service.Impl;
 
-import com.example.beatboxcompany.Dto.LyricsDto;
-import com.example.beatboxcompany.Dto.LyricsLine;
-import com.example.beatboxcompany.Entity.Song;
-import com.example.beatboxcompany.Repository.SongRepository;
-import com.example.beatboxcompany.Service.LyricsService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Collections;
+
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import com.example.beatboxcompany.Dto.LyricsDto;
+import com.example.beatboxcompany.Service.LyricsService;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class LyricsServiceImpl implements LyricsService {
 
     private final RestTemplate restTemplate;
-    private final SongRepository songRepository;
 
     @Override
-    public LyricsDto getLyricsBySongId(String songId) {
+    public LyricsDto getLyricsBySpotifyId(String spotifyId) {
+        // 1️⃣ thử LRCLIB trước (sync lyrics)
+        LyricsDto lrc = tryLrcLib(spotifyId);
+        if (lrc != null) return lrc;
 
-        Song song = songRepository.findById(songId)
-                .orElseThrow(() -> new RuntimeException("Song not found"));
-
-        // 1️⃣ Thử LRC trước (timestamp)
-        LyricsDto lrc = tryLrc(song);
-        if (lrc != null) {
-            lrc.setSynced(true);
-            return lrc;
-        }
-
-        // 2️⃣ Fallback Lyricstify
-        LyricsDto plain = tryLyricstify(song.getSpotifyId());
-        plain.setSynced(false);
-        return plain;
+        // 2️⃣ fallback lyricstify
+        return tryLyricstify(spotifyId);
     }
 
-    // ===== LRCLIB =====
-    private LyricsDto tryLrc(Song song) {
+    // ===============================
+    // LRCLIB (hay lỗi TLS → nuốt lỗi)
+    // ===============================
+    private LyricsDto tryLrcLib(String spotifyId) {
         try {
-            if (song.getTitle() == null || song.getArtistName() == null) {
-                return null;
-            }
-
-            String url = "https://lrclib.net/api/get?"
-                    + "track_name=" + URLEncoder.encode(song.getTitle(), StandardCharsets.UTF_8)
-                    + "&artist_name=" + URLEncoder.encode(song.getArtistName(), StandardCharsets.UTF_8);
-
-            Map<String, Object> res = restTemplate.getForObject(url, Map.class);
-
-            if (res == null || res.get("syncedLyrics") == null) {
-                return null;
-            }
-
-            return parseLrc((String) res.get("syncedLyrics"));
-
+            String url = "https://lrclib.net/api/get?spotify_id=" + spotifyId;
+            return restTemplate.getForObject(url, LyricsDto.class);
         } catch (Exception e) {
-            System.err.println("LRCLIB error: " + e.getMessage());
+            System.err.println("LRCLIB ignored: " + e.getMessage());
             return null;
         }
     }
 
-    // ===== LYRICSTIFY =====
+    // ===============================
+    // LYRICSTIFY (ổn định hơn)
+    // ===============================
     private LyricsDto tryLyricstify(String spotifyId) {
-        LyricsDto dto = new LyricsDto();
-        List<LyricsLine> lines = new ArrayList<>();
-
-        if (spotifyId == null || spotifyId.isBlank()) {
-            lines.add(new LyricsLine(null, "Không có lời bài hát"));
-            dto.setLines(lines);
-            return dto;
-        }
-
         try {
             String url = "https://api.lyricstify.vercel.app/api/lyrics/" + spotifyId;
-            Map<String, Object> res = restTemplate.getForObject(url, Map.class);
 
-            if (res == null || res.get("lyrics") == null) {
-                lines.add(new LyricsLine(null, "Không tìm thấy lời bài hát"));
-            } else {
-                String lyrics = (String) res.get("lyrics");
-                for (String line : lyrics.split("\n")) {
-                    lines.add(new LyricsLine(null, line));
-                }
-            }
+            LyricsDto dto = restTemplate.getForObject(url, LyricsDto.class);
+            if (dto == null) dto = new LyricsDto();
+
+            dto.setSource("lyricstify");
+            dto.setLines(Collections.emptyList()); // KHÔNG có timestamp
+            return dto;
+
         } catch (Exception e) {
-            lines.add(new LyricsLine(null, "Lỗi tải lời bài hát"));
+            // ❌ KHÔNG throw → FE không bao giờ 500
+            LyricsDto empty = new LyricsDto();
+            empty.setLyrics("");
+            empty.setLines(Collections.emptyList());
+            empty.setSource("none");
+            return empty;
         }
-
-        dto.setLines(lines);
-        return dto;
-    }
-
-    // ===== LRC PARSER =====
-    private LyricsDto parseLrc(String lrc) {
-        List<LyricsLine> lines = new ArrayList<>();
-
-        Pattern pattern = Pattern.compile("\\[(\\d+):(\\d+\\.\\d+)](.+)");
-        for (String line : lrc.split("\n")) {
-            Matcher m = pattern.matcher(line);
-            if (m.find()) {
-                double time = Integer.parseInt(m.group(1)) * 60
-                        + Double.parseDouble(m.group(2));
-                lines.add(new LyricsLine(time, m.group(3).trim()));
-            }
-        }
-
-        LyricsDto dto = new LyricsDto();
-        dto.setLines(lines);
-        return dto;
     }
 }
