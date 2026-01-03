@@ -102,22 +102,20 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // =======================================================
-        // === ĐỊNH NGHĨA CÁC NGUỒN ĐƯỢC PHÉP Ở ĐÂY ===
-        // =======================================================
-        config.setAllowedOrigins(List.of(
-                "https://hoangthe8944-star.github.io", // Production Frontend
-                "http://localhost:5173", // Development Frontend
-                "http://localhost:3000" // Thêm các port dev khác nếu cần
-        ));
+        // ✅ DEV: cho phép mọi origin (không phụ thuộc IP / WiFi)
+        config.setAllowedOriginPatterns(List.of("*"));
 
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+        config.setAllowedMethods(List.of(
+                "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+
         config.setAllowedHeaders(List.of("*"));
+
+        // ✅ BẮT BUỘC vì bạn dùng JWT / OAuth2
         config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        // Áp dụng cấu hình này cho tất cả các đường dẫn
         source.registerCorsConfiguration("/**", config);
+
         return source;
     }
 }
