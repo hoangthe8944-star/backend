@@ -18,12 +18,8 @@ public class LyricsController {
 
     private final LyricsService lyricsService;
 
-    @GetMapping("/{spotifyTrackId}")
-    public ResponseEntity<LyricsDto> getLyrics(
-            @PathVariable String spotifyTrackId
-    ) {
-        return ResponseEntity.ok(
-            lyricsService.getLyricsBySpotifyTrackId(spotifyTrackId)
-        );
+    @GetMapping("/{songId}")
+    public LyricsDto getLyrics(@PathVariable String songId) {
+        return lyricsService.getLyricsBySongId(songId);
     }
 }
