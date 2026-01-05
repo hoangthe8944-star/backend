@@ -13,39 +13,36 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class LyricsService {
     private final RestTemplate restTemplate = new RestTemplate();
 
-    public LyricsDto getLyrics(String track, String artist, String album, Integer durationSeconds) {
+    public LyricsDto getLyrics(String track, String artist) {
         // Bước 1: Thử gọi API "Get" (Khớp chính xác) - Bỏ Album để tăng tỉ lệ trúng
         try {
             String url = UriComponentsBuilder.fromHttpUrl("https://lrclib.net/api/get")
                     .queryParam("track_name", track)
                     .queryParam("artist_name", artist)
                     .toUriString();
-            
+
             return restTemplate.getForObject(url, LyricsDto.class);
         } catch (Exception e) {
             // Bước 2: Nếu Get thất bại (404), chuyển sang "Search" (Tìm kiếm gần đúng)
+            System.out.println("Exact match failed, switching to search for: " + track);
             return searchFallback(track, artist);
         }
     }
 
     private LyricsDto searchFallback(String track, String artist) {
         try {
-            // Chỉ tìm theo tên bài + nghệ sĩ, bỏ qua album phức tạp
-            String query = track + " " + artist;
             String url = UriComponentsBuilder.fromHttpUrl("https://lrclib.net/api/search")
-                    .queryParam("q", query)
-                    .toUriString();
+                    .queryParam("q", track + " " + artist)
+                    .build().toUriString();
 
-            List<Map<String, Object>> results = restTemplate.getForObject(url, List.class);
-            if (results != null && !results.isEmpty()) {
-                Map<String, Object> first = results.get(0);
-                LyricsDto dto = new LyricsDto();
-                dto.setPlainLyrics((String) first.get("plainLyrics"));
-                dto.setSyncedLyrics((String) first.get("syncedLyrics"));
-                return dto;
+            // API Search của LRCLIB trả về mảng [], phải dùng LyricsDto[]
+            LyricsDto[] results = restTemplate.getForObject(url, LyricsDto[].class);
+
+            if (results != null && results.length > 0) {
+                return results[0]; // Lấy bài hát đầu tiên tìm thấy
             }
         } catch (Exception e) {
-            System.out.println("Search failed too");
+            System.err.println("Search also failed: " + e.getMessage());
         }
         return null;
     }

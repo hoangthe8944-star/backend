@@ -18,22 +18,26 @@ import org.springframework.web.bind.annotation.RestController;
 @CrossOrigin(origins = "*")
 public class LyricsController {
 
-    @Autowired
+ @Autowired
     private LyricsService lyricsService;
 
     @GetMapping
-    public ResponseEntity<?> getLyrics(
+    public ResponseEntity<LyricsDto> getLyrics(
             @RequestParam String track,
-            @RequestParam String artist,
-            @RequestParam(required = false) String album,
-            @RequestParam(required = false) Integer duration) {
-
-        LyricsDto result = lyricsService.getLyrics(track, artist, album, duration);
-
-        // LUÔN trả về OK (200), nếu không có lời thì trả về object rỗng
-        if (result == null) {
-            return ResponseEntity.ok(Map.of("message", "No lyrics found"));
+            @RequestParam String artist) {
+        
+        try {
+            LyricsDto result = lyricsService.getLyrics(track, artist);
+            if (result != null) {
+                return ResponseEntity.ok(result);
+            }
+        } catch (Exception e) {
+            // Bất kể lỗi gì xảy ra bên trong Service, cũng không cho phép văng lỗi 500
+            System.err.println("Fatal Controller Error: " + e.getMessage());
         }
-        return ResponseEntity.ok(result);
+
+        // Thay vì trả về 500 hoặc 404, trả về một Object rỗng với mã 200
+        // Cách này giúp Axios ở Frontend không bị văng vào khối .catch()
+        return ResponseEntity.ok(new LyricsDto());
     }
 }
