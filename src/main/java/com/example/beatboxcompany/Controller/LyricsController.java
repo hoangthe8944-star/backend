@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/lyrics") // Phải khớp 100% với Frontend gọi
-@CrossOrigin(origins = "*")
 public class LyricsController {
 
  @Autowired
