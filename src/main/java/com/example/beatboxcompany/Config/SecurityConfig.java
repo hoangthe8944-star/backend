@@ -67,7 +67,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
 
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/api/public/**", "/api/songs/**", "/api/v1/lyrics/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/api/public/**", "/api/songs/**", "/api/v1/lyrics/**", "/api/playlists/**").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/**", "/error", "/favicon.ico").permitAll()
                         .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
                         .anyRequest().authenticated())
