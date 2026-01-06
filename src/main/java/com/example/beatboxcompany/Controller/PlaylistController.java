@@ -25,7 +25,7 @@ public class PlaylistController {
     @PostMapping
     public ResponseEntity<PlaylistDto> createPlaylist(
             @RequestBody PlaylistRequest request,
-            @RequestHeader("currentUserId") String currentUserId,
+            @RequestHeader(value = "currentUserId", required = false) String currentUserId, 
             @RequestHeader(value = "isAdmin", defaultValue = "false") boolean isAdmin
     ) {
         PlaylistDto dto = playlistService.createPlaylist(request, currentUserId, isAdmin);
