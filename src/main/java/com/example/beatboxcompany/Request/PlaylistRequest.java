@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -19,7 +21,8 @@ public class PlaylistRequest {
     private String type;
 
     // Playlist có công khai hay không
-    private Boolean isPublic = false;
+    @JsonProperty("isPublic")
+    private Boolean isPublic;
 
     // Danh sách trackId, dùng List<String> cho đơn giản
     private List<String> tracks = new ArrayList<>();
