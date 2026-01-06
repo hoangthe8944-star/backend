@@ -9,6 +9,7 @@ public class PlaylistDto {
     private String name;
     private String description;
     private String ownerId; 
-    private boolean isPublic;
+    private boolean PublicPlaylist;
+    private String type;  
     private List<String> tracks; // Danh sách ID bài hát
 }

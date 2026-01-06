@@ -9,10 +9,13 @@ import java.util.Optional;
 
 @Repository
 public interface PlaylistRepository extends MongoRepository<Playlist, String> {
-    
+
     // Dùng cho UserController (lấy tất cả Playlist của người dùng)
     List<Playlist> findByOwnerId(String ownerId);
 
     // Dùng cho PublicController (lấy các Playlist công khai)
-    Optional<Playlist> findByIdAndIsPublic(String id, boolean isPublic);
+    Optional<Playlist> findByIdAndPublicPlaylist(String playlistId, boolean isPublic);
+
+    List<Playlist> findByPublicPlaylist(boolean publicPlaylist);
+
 }

@@ -6,97 +6,154 @@ import com.example.beatboxcompany.Request.PlaylistRequest;
 import com.example.beatboxcompany.Mapper.PlaylistMapper;
 import com.example.beatboxcompany.Repository.PlaylistRepository;
 import com.example.beatboxcompany.Service.PlaylistService;
-import com.example.beatboxcompany.Service.SongService; // Cần dùng SongService để kiểm tra bài hát
+import com.example.beatboxcompany.Service.SongService;
 
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 @Service
 public class PlaylistServiceImpl implements PlaylistService {
 
     private final PlaylistRepository playlistRepository;
-    private final SongService songService; // Để kiểm tra bài hát có tồn tại và đã PUBLISHED
+    private final SongService songService;
 
     public PlaylistServiceImpl(PlaylistRepository playlistRepository, SongService songService) {
         this.playlistRepository = playlistRepository;
         this.songService = songService;
     }
 
-    // Helper: Kiểm tra quyền sở hữu
-    private void checkOwner(Playlist playlist, String currentUserId) {
-        if (!playlist.getOwnerId().equals(currentUserId)) {
-            throw new SecurityException("Bạn không có quyền chỉnh sửa Playlist này.");
+    // ----- Kiểm tra quyền chỉnh sửa -----
+    private void checkEditPermission(Playlist playlist, String currentUserId, boolean isAdmin) {
+        switch (playlist.getType()) {
+            case "user":
+                if (!playlist.getOwnerId().equals(currentUserId)) {
+                    throw new SecurityException("Bạn không có quyền chỉnh sửa playlist này");
+                }
+                break;
+            case "editorial":
+                if (!isAdmin) {
+                    throw new SecurityException("Chỉ admin mới được chỉnh sửa playlist editorial");
+                }
+                break;
+            case "system":
+                throw new SecurityException("Playlist hệ thống không thể chỉnh sửa");
+            default:
+                throw new IllegalStateException("Playlist type không hợp lệ");
         }
     }
 
+    // ----- Tạo playlist -----
     @Override
-    public PlaylistDto createPlaylist(PlaylistRequest request, String ownerId) {
+    public PlaylistDto createPlaylist(PlaylistRequest request, String ownerId, boolean isAdmin) {
+        // Chặn user tạo playlist system
+        if ("system".equals(request.getType()) && !isAdmin) {
+            throw new SecurityException("Chỉ admin mới được tạo playlist hệ thống");
+        }
+
+        // Nếu tracks null thì khởi tạo trống
+        if (request.getTracks() == null) {
+            request.setTracks(new ArrayList<>());
+        }
+
         Playlist playlist = PlaylistMapper.toEntity(request, ownerId);
-        Playlist savedPlaylist = playlistRepository.save(playlist);
-        return PlaylistMapper.toDto(savedPlaylist);
+        Playlist saved = playlistRepository.save(playlist);
+        return PlaylistMapper.toDto(saved);
     }
 
+    // ----- Cập nhật playlist -----
+    @Override
+    public PlaylistDto updatePlaylist(String playlistId, PlaylistRequest request, String currentUserId, boolean isAdmin) {
+        Playlist playlist = playlistRepository.findById(playlistId)
+                .orElseThrow(() -> new RuntimeException("Playlist không tồn tại"));
+
+        checkEditPermission(playlist, currentUserId, isAdmin);
+
+        // Cập nhật các trường cơ bản
+        if (request.getName() != null) playlist.setName(request.getName());
+        if (request.getDescription() != null) playlist.setDescription(request.getDescription());
+        if (request.getType() != null) playlist.setType(request.getType());
+        if (request.getIsPublic() != null) playlist.setPublicPlaylist(request.getIsPublic());
+        if (request.getTracks() != null) playlist.setTracks(request.getTracks());
+
+        playlistRepository.save(playlist);
+        return PlaylistMapper.toDto(playlist);
+    }
+
+    // ----- Lấy playlist của user -----
     @Override
     public List<PlaylistDto> getUserPlaylists(String ownerId) {
         return playlistRepository.findByOwnerId(ownerId).stream()
-            .map(PlaylistMapper::toDto)
-            .collect(Collectors.toList());
+                .map(PlaylistMapper::toDto)
+                .collect(Collectors.toList());
     }
 
+    // ----- Lấy chi tiết playlist public -----
     @Override
     public PlaylistDto getPublicPlaylistDetails(String playlistId) {
-        // Chỉ lấy Playlist đã được đánh dấu là public
-        Playlist playlist = playlistRepository.findByIdAndIsPublic(playlistId, true)
-            .orElseThrow(() -> new RuntimeException("Không tìm thấy Playlist công khai này!"));
+        Playlist playlist = playlistRepository.findByIdAndPublicPlaylist(playlistId, true)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy Playlist công khai này!"));
         return PlaylistMapper.toDto(playlist);
     }
 
+    // ----- Lấy danh sách tất cả playlist public -----
     @Override
-    public PlaylistDto addTrackToPlaylist(String playlistId, String trackId, String currentUserId) {
-        Playlist playlist = playlistRepository.findById(playlistId)
-            .orElseThrow(() -> new RuntimeException("Playlist không tồn tại."));
-            
-        // 1. Kiểm tra quyền
-        checkOwner(playlist, currentUserId);
+    public List<PlaylistDto> getPublicPlaylists() {
+        return playlistRepository.findByPublicPlaylist(true).stream()
+                .map(PlaylistMapper::toDto)
+                .collect(Collectors.toList());
+    }
 
-        // 2. Kiểm tra bài hát có tồn tại và đã PUBLISHED (Nghiệp vụ quan trọng!)
-        // songService.getPublishedSongById(trackId); // Gọi Service để đảm bảo tính toàn vẹn
-        
-        // 3. Thêm bài hát (Nếu chưa có)
-        if (!playlist.getTracks().contains(trackId)) {
-            playlist.getTracks().add(trackId);
+    // ----- Thêm track vào playlist -----
+    @Override
+    public PlaylistDto addTrackToPlaylist(String playlistId, String trackId, String currentUserId, boolean isAdmin) {
+        Playlist playlist = playlistRepository.findById(playlistId)
+                .orElseThrow(() -> new RuntimeException("Playlist không tồn tại"));
+
+        checkEditPermission(playlist, currentUserId, isAdmin);
+
+        // Kiểm tra bài hát tồn tại & đã publish
+        songService.getPublishedSongById(trackId);
+
+        // Thêm track nếu chưa có
+        List<String> tracks = playlist.getTracks();
+        if (!tracks.contains(trackId)) {
+            tracks.add(trackId);
+            playlist.setTracks(tracks);
             playlistRepository.save(playlist);
         }
-        
+
         return PlaylistMapper.toDto(playlist);
     }
-    
+
+    // ----- Xóa track khỏi playlist -----
     @Override
     public PlaylistDto removeTrackFromPlaylist(String playlistId, String trackId, String currentUserId) {
         Playlist playlist = playlistRepository.findById(playlistId)
-            .orElseThrow(() -> new RuntimeException("Playlist không tồn tại."));
-            
-        // 1. Kiểm tra quyền
-        checkOwner(playlist, currentUserId);
+                .orElseThrow(() -> new RuntimeException("Playlist không tồn tại."));
 
-        // 2. Xóa bài hát
-        playlist.getTracks().remove(trackId);
-        playlistRepository.save(playlist);
-        
+        checkEditPermission(playlist, currentUserId, false);
+
+        List<String> tracks = playlist.getTracks();
+        if (tracks.contains(trackId)) {
+            tracks.remove(trackId);
+            playlist.setTracks(tracks);
+            playlistRepository.save(playlist);
+        }
+
         return PlaylistMapper.toDto(playlist);
     }
-    
-    @Override
-    public void deletePlaylist(String playlistId, String currentUserId) {
-        Playlist playlist = playlistRepository.findById(playlistId)
-            .orElseThrow(() -> new RuntimeException("Playlist không tồn tại."));
 
-        // 1. Kiểm tra quyền
-        checkOwner(playlist, currentUserId);
-        
-        // 2. Xóa
+    // ----- Xóa playlist -----
+    @Override
+    public void deletePlaylist(String playlistId, String currentUserId, boolean isAdmin) {
+        Playlist playlist = playlistRepository.findById(playlistId)
+                .orElseThrow(() -> new RuntimeException("Playlist không tồn tại."));
+
+        checkEditPermission(playlist, currentUserId, isAdmin);
+
         playlistRepository.delete(playlist);
     }
 }
