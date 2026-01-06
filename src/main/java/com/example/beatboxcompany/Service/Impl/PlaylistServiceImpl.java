@@ -65,18 +65,27 @@ public class PlaylistServiceImpl implements PlaylistService {
 
     // ----- Cập nhật playlist -----
     @Override
-    public PlaylistDto updatePlaylist(String playlistId, PlaylistRequest request, String currentUserId, boolean isAdmin) {
+    public PlaylistDto updatePlaylist(String playlistId, PlaylistRequest request, String currentUserId,
+            boolean isAdmin) {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new RuntimeException("Playlist không tồn tại"));
 
         checkEditPermission(playlist, currentUserId, isAdmin);
 
         // Cập nhật các trường cơ bản
-        if (request.getName() != null) playlist.setName(request.getName());
-        if (request.getDescription() != null) playlist.setDescription(request.getDescription());
-        if (request.getType() != null) playlist.setType(request.getType());
-        if (request.getIsPublic() != null) playlist.setPublicPlaylist(request.getIsPublic());
-        if (request.getTracks() != null) playlist.setTracks(request.getTracks());
+        if (request.getName() != null)
+            playlist.setName(request.getName());
+        if (request.getDescription() != null)
+            playlist.setDescription(request.getDescription());
+        if (request.getType() != null)
+            playlist.setType(request.getType());
+        if (request.getIsPublic() != null)
+            playlist.setPublicPlaylist(request.getIsPublic());
+        if (request.getTracks() != null)
+            playlist.setTracks(request.getTracks());
+        if (request.getCoverImage() != null) {
+            playlist.setCoverImage(request.getCoverImage());
+        }
 
         playlistRepository.save(playlist);
         return PlaylistMapper.toDto(playlist);

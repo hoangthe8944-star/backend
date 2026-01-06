@@ -28,4 +28,5 @@ public class Playlist {
 
     // Lưu trackId trực tiếp
     private List<String> tracks = new ArrayList<>();
+    private String coverImage; 
 }

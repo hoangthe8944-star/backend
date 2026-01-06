@@ -23,4 +23,5 @@ public class PlaylistRequest {
 
     // Danh sách trackId, dùng List<String> cho đơn giản
     private List<String> tracks = new ArrayList<>();
+    private String coverImage;
 }

@@ -17,6 +17,7 @@ public class PlaylistMapper {
         playlist.setPublicPlaylist(request.getIsPublic() != null ? request.getIsPublic() : false);
         playlist.setOwnerId(ownerId);
         playlist.setTracks(request.getTracks() != null ? request.getTracks() : new ArrayList<>());
+        playlist.setCoverImage(request.getCoverImage());
         return playlist;
     }
 
@@ -30,6 +31,7 @@ public class PlaylistMapper {
         dto.setPublicPlaylist(playlist.isPublicPlaylist());
         dto.setType(playlist.getType());
         dto.setTracks(playlist.getTracks() != null ? playlist.getTracks() : new ArrayList<>());
+        dto.setCoverImage(playlist.getCoverImage());
         return dto;
     }
 }

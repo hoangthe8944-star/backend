@@ -12,4 +12,5 @@ public class PlaylistDto {
     private boolean PublicPlaylist;
     private String type;  
     private List<String> tracks; // Danh sách ID bài hát
+    private String coverImage;
 }
