@@ -27,6 +27,7 @@ public class PlaylistMapper {
         dto.setId(playlist.getId());
         dto.setName(playlist.getName());
         dto.setDescription(playlist.getDescription());
+        System.err.println("DEBUG MAPPER: Đang gán ownerId từ Entity (" + playlist.getOwnerId() + ") vào DTO");
         dto.setOwnerId(playlist.getOwnerId());
         dto.setPublicPlaylist(playlist.isPublicPlaylist());
         dto.setType(playlist.getType());
