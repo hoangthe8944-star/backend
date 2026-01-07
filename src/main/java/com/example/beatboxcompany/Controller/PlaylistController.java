@@ -28,6 +28,7 @@ public class PlaylistController {
             @RequestHeader(value = "currentUserId", required = false) String currentUserId, 
             @RequestHeader(value = "isAdmin", defaultValue = "false") boolean isAdmin
     ) {
+        System.out.println("DEBUG: currentUserId nhận được là: " + currentUserId);
         PlaylistDto dto = playlistService.createPlaylist(request, currentUserId, isAdmin);
         return ResponseEntity.ok(dto);
     }
