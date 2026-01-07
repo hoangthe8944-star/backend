@@ -13,7 +13,8 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/playlists")
-// @CrossOrigin(origins = "*") // Mở cái này nếu bạn gặp lỗi CORS khi gọi từ GitHub Pages
+// @CrossOrigin(origins = "*") // Mở cái này nếu bạn gặp lỗi CORS khi gọi từ
+// GitHub Pages
 public class PlaylistController {
 
     private final PlaylistService playlistService;
@@ -27,12 +28,12 @@ public class PlaylistController {
     @PostMapping
     public ResponseEntity<?> createPlaylist(
             @RequestBody PlaylistRequest request,
-            @RequestHeader(value = "currentUserId", required = false) String currentUserId, 
-            @RequestHeader(value = "isAdmin", defaultValue = "false") boolean isAdmin
-    ) {
-        if (currentUserId == null || currentUserId.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Lỗi: Thiếu Header currentUserId");
-        }
+            // Chấp nhận cả viết hoa lẫn viết thường bằng cách dùng Alias
+            @RequestHeader(value = "currentuserid", required = false) String currentUserId,
+            @RequestHeader(value = "isadmin", defaultValue = "false") boolean isAdmin) {
+        // Dùng System.err để log hiện ra màu nổi bật hơn trong bảng log Render
+        System.err.println("=====> BACKEND NHẬN ĐƯỢC ID LÀ: " + currentUserId);
+
         PlaylistDto dto = playlistService.createPlaylist(request, currentUserId, isAdmin);
         return ResponseEntity.ok(dto);
     }
@@ -41,8 +42,7 @@ public class PlaylistController {
     // Giúp Frontend chỉ cần gọi /api/playlists/me là xong
     @GetMapping("/me")
     public ResponseEntity<List<PlaylistDto>> getMyPlaylists(
-            @RequestHeader("currentUserId") String currentUserId
-    ) {
+            @RequestHeader("currentUserId") String currentUserId) {
         List<PlaylistDto> playlists = playlistService.getUserPlaylists(currentUserId);
         return ResponseEntity.ok(playlists);
     }
@@ -53,8 +53,7 @@ public class PlaylistController {
             @PathVariable String playlistId,
             @RequestBody PlaylistRequest request,
             @RequestHeader("currentUserId") String currentUserId,
-            @RequestHeader(value = "isAdmin", defaultValue = "false") boolean isAdmin
-    ) {
+            @RequestHeader(value = "isAdmin", defaultValue = "false") boolean isAdmin) {
         try {
             PlaylistDto dto = playlistService.updatePlaylist(playlistId, request, currentUserId, isAdmin);
             return ResponseEntity.ok(dto);
@@ -63,7 +62,8 @@ public class PlaylistController {
         }
     }
 
-    // ----- Lấy tất cả playlist của user bất kỳ (ví dụ trang cá nhân người khác) -----
+    // ----- Lấy tất cả playlist của user bất kỳ (ví dụ trang cá nhân người khác)
+    // -----
     @GetMapping("/user/{ownerId}")
     public ResponseEntity<List<PlaylistDto>> getUserPlaylists(@PathVariable String ownerId) {
         List<PlaylistDto> playlists = playlistService.getUserPlaylists(ownerId);
@@ -84,14 +84,14 @@ public class PlaylistController {
         return ResponseEntity.ok(playlists);
     }
 
-    // ----- Thêm/Xóa bài hát và Xóa Playlist (Giữ nguyên hoặc thêm try-catch SecurityException) -----
+    // ----- Thêm/Xóa bài hát và Xóa Playlist (Giữ nguyên hoặc thêm try-catch
+    // SecurityException) -----
     @PostMapping("/{playlistId}/tracks/{trackId}")
     public ResponseEntity<?> addTrackToPlaylist(
             @PathVariable String playlistId,
             @PathVariable String trackId,
             @RequestHeader("currentUserId") String currentUserId,
-            @RequestHeader(value = "isAdmin", defaultValue = "false") boolean isAdmin
-    ) {
+            @RequestHeader(value = "isAdmin", defaultValue = "false") boolean isAdmin) {
         try {
             PlaylistDto dto = playlistService.addTrackToPlaylist(playlistId, trackId, currentUserId, isAdmin);
             return ResponseEntity.ok(dto);
@@ -104,8 +104,7 @@ public class PlaylistController {
     public ResponseEntity<?> removeTrackFromPlaylist(
             @PathVariable String playlistId,
             @PathVariable String trackId,
-            @RequestHeader("currentUserId") String currentUserId
-    ) {
+            @RequestHeader("currentUserId") String currentUserId) {
         try {
             PlaylistDto dto = playlistService.removeTrackFromPlaylist(playlistId, trackId, currentUserId);
             return ResponseEntity.ok(dto);
@@ -118,8 +117,7 @@ public class PlaylistController {
     public ResponseEntity<?> deletePlaylist(
             @PathVariable String playlistId,
             @RequestHeader("currentUserId") String currentUserId,
-            @RequestHeader(value = "isAdmin", defaultValue = "false") boolean isAdmin
-    ) {
+            @RequestHeader(value = "isAdmin", defaultValue = "false") boolean isAdmin) {
         try {
             playlistService.deletePlaylist(playlistId, currentUserId, isAdmin);
             return ResponseEntity.noContent().build();
