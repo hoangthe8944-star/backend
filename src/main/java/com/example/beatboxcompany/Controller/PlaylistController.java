@@ -5,6 +5,7 @@ import com.example.beatboxcompany.Request.PlaylistRequest;
 import com.example.beatboxcompany.Service.PlaylistService;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,6 +13,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/playlists")
+// @CrossOrigin(origins = "*") // Mở cái này nếu bạn gặp lỗi CORS khi gọi từ GitHub Pages
 public class PlaylistController {
 
     private final PlaylistService playlistService;
@@ -23,80 +25,106 @@ public class PlaylistController {
 
     // ----- Tạo playlist -----
     @PostMapping
-    public ResponseEntity<PlaylistDto> createPlaylist(
+    public ResponseEntity<?> createPlaylist(
             @RequestBody PlaylistRequest request,
             @RequestHeader(value = "currentUserId", required = false) String currentUserId, 
             @RequestHeader(value = "isAdmin", defaultValue = "false") boolean isAdmin
     ) {
-        System.out.println("DEBUG: currentUserId nhận được là: " + currentUserId);
+        if (currentUserId == null || currentUserId.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Lỗi: Thiếu Header currentUserId");
+        }
         PlaylistDto dto = playlistService.createPlaylist(request, currentUserId, isAdmin);
         return ResponseEntity.ok(dto);
     }
 
+    // ----- [MỚI] Lấy playlist của chính người đang đăng nhập -----
+    // Giúp Frontend chỉ cần gọi /api/playlists/me là xong
+    @GetMapping("/me")
+    public ResponseEntity<List<PlaylistDto>> getMyPlaylists(
+            @RequestHeader("currentUserId") String currentUserId
+    ) {
+        List<PlaylistDto> playlists = playlistService.getUserPlaylists(currentUserId);
+        return ResponseEntity.ok(playlists);
+    }
+
     // ----- Cập nhật playlist -----
     @PutMapping("/{playlistId}")
-    public ResponseEntity<PlaylistDto> updatePlaylist(
+    public ResponseEntity<?> updatePlaylist(
             @PathVariable String playlistId,
             @RequestBody PlaylistRequest request,
             @RequestHeader("currentUserId") String currentUserId,
             @RequestHeader(value = "isAdmin", defaultValue = "false") boolean isAdmin
     ) {
-        PlaylistDto dto = playlistService.updatePlaylist(playlistId, request, currentUserId, isAdmin);
-        return ResponseEntity.ok(dto);
+        try {
+            PlaylistDto dto = playlistService.updatePlaylist(playlistId, request, currentUserId, isAdmin);
+            return ResponseEntity.ok(dto);
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
     }
 
-    // ----- Lấy tất cả playlist của user -----
+    // ----- Lấy tất cả playlist của user bất kỳ (ví dụ trang cá nhân người khác) -----
     @GetMapping("/user/{ownerId}")
     public ResponseEntity<List<PlaylistDto>> getUserPlaylists(@PathVariable String ownerId) {
         List<PlaylistDto> playlists = playlistService.getUserPlaylists(ownerId);
         return ResponseEntity.ok(playlists);
     }
 
-    // ----- Lấy chi tiết playlist public -----
+    // ----- Lấy chi tiết playlist public (Dùng cho trang PlaylistDetail) -----
     @GetMapping("/public/{playlistId}")
     public ResponseEntity<PlaylistDto> getPublicPlaylistDetails(@PathVariable String playlistId) {
         PlaylistDto dto = playlistService.getPublicPlaylistDetails(playlistId);
         return ResponseEntity.ok(dto);
     }
 
-    // ----- Lấy danh sách tất cả playlist public -----
+    // ----- Lấy danh sách tất cả playlist public (Dùng cho trang chủ) -----
     @GetMapping("/public")
     public ResponseEntity<List<PlaylistDto>> getPublicPlaylists() {
         List<PlaylistDto> playlists = playlistService.getPublicPlaylists();
         return ResponseEntity.ok(playlists);
     }
 
-    // ----- Thêm track vào playlist -----
+    // ----- Thêm/Xóa bài hát và Xóa Playlist (Giữ nguyên hoặc thêm try-catch SecurityException) -----
     @PostMapping("/{playlistId}/tracks/{trackId}")
-    public ResponseEntity<PlaylistDto> addTrackToPlaylist(
+    public ResponseEntity<?> addTrackToPlaylist(
             @PathVariable String playlistId,
             @PathVariable String trackId,
             @RequestHeader("currentUserId") String currentUserId,
             @RequestHeader(value = "isAdmin", defaultValue = "false") boolean isAdmin
     ) {
-        PlaylistDto dto = playlistService.addTrackToPlaylist(playlistId, trackId, currentUserId, isAdmin);
-        return ResponseEntity.ok(dto);
+        try {
+            PlaylistDto dto = playlistService.addTrackToPlaylist(playlistId, trackId, currentUserId, isAdmin);
+            return ResponseEntity.ok(dto);
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
     }
 
-    // ----- Xóa track khỏi playlist -----
     @DeleteMapping("/{playlistId}/tracks/{trackId}")
-    public ResponseEntity<PlaylistDto> removeTrackFromPlaylist(
+    public ResponseEntity<?> removeTrackFromPlaylist(
             @PathVariable String playlistId,
             @PathVariable String trackId,
             @RequestHeader("currentUserId") String currentUserId
     ) {
-        PlaylistDto dto = playlistService.removeTrackFromPlaylist(playlistId, trackId, currentUserId);
-        return ResponseEntity.ok(dto);
+        try {
+            PlaylistDto dto = playlistService.removeTrackFromPlaylist(playlistId, trackId, currentUserId);
+            return ResponseEntity.ok(dto);
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
     }
 
-    // ----- Xóa playlist -----
     @DeleteMapping("/{playlistId}")
-    public ResponseEntity<Void> deletePlaylist(
+    public ResponseEntity<?> deletePlaylist(
             @PathVariable String playlistId,
             @RequestHeader("currentUserId") String currentUserId,
             @RequestHeader(value = "isAdmin", defaultValue = "false") boolean isAdmin
     ) {
-        playlistService.deletePlaylist(playlistId, currentUserId, isAdmin);
-        return ResponseEntity.noContent().build();
+        try {
+            playlistService.deletePlaylist(playlistId, currentUserId, isAdmin);
+            return ResponseEntity.noContent().build();
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
     }
 }
