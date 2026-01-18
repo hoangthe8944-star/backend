@@ -67,7 +67,9 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
 
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/api/public/**", "/api/songs/**", "/api/v1/lyrics/**", "/api/playlists/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/api/public/**", "/api/songs/**", "/api/v1/lyrics/**",
+                                "/api/playlists/**", "/api/history/**", "/api/categories/**", "/api/artists/**")
+                        .permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/**", "/error", "/favicon.ico").permitAll()
                         .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
                         .anyRequest().authenticated())
@@ -101,7 +103,12 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-
+        config.setAllowedOriginPatterns(List.of(
+                "http://10.18.6.181",
+                "http://10.18.6.181:*",
+                "http://localhost:*",
+                "http://127.0.0.1:*",
+                "https://hoangthe8944-star.github.io"));
         // ✅ DEV: cho phép mọi origin (không phụ thuộc IP / WiFi)
         config.setAllowedOriginPatterns(List.of("*"));
 

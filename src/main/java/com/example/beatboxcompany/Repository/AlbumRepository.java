@@ -10,4 +10,5 @@ public interface AlbumRepository extends MongoRepository<Album, String> {
     List<Album> findByArtistId(String artistId);
 
     Optional<Album> findByTitleAndArtistId(String title, String artistId);
+    
 }

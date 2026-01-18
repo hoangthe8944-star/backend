@@ -5,6 +5,8 @@ import com.example.beatboxcompany.Dto.ArtistDto;
 import com.example.beatboxcompany.Dto.SongDto;
 import com.example.beatboxcompany.Dto.SubscriptionDto;
 import com.example.beatboxcompany.Dto.UserDto;
+import com.example.beatboxcompany.Entity.Artist;
+import com.example.beatboxcompany.Repository.ArtistRepository;
 import com.example.beatboxcompany.Service.*;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +27,7 @@ public class AdminController {
     private final AlbumService albumService;
     private final SubscriptionService subscriptionService;
     private final SpotifyService spotifyService;
+    private final ArtistRepository artistRepository;
 
     public AdminController(
             SongService songService,
@@ -32,6 +35,7 @@ public class AdminController {
             ArtistService artistService,
             AlbumService albumService,
             SubscriptionService subscriptionService,
+            ArtistRepository artistRepository,
             SpotifyService spotifyService) {
         this.songService = songService;
         this.userService = userService;
@@ -39,6 +43,7 @@ public class AdminController {
         this.albumService = albumService;
         this.subscriptionService = subscriptionService;
         this.spotifyService = spotifyService;
+        this.artistRepository = artistRepository;
     }
 
     // -----------------------------------------------------
@@ -232,4 +237,32 @@ public class AdminController {
 
     record CreateArtistRequest(String userId, String artistName) {
     }
+
+    // Trong file AdminController.java
+
+    @PostMapping("/fix-empty-artists")
+    public ResponseEntity<?> fixArtists() {
+        // 1. Lấy danh sách Entity (không dùng Dto ở đây để xử lý lưu cho chuẩn)
+        List<Artist> allArtists = artistRepository.findAll();
+        int count = 0;
+
+        for (Artist artist : allArtists) {
+            // Kiểm tra nếu thiếu ảnh
+            if (artist.getAvatarUrl() == null || artist.getAvatarUrl().isEmpty()) {
+                try {
+                    // SỬA TẠI ĐÂY: Gọi hàm đồng bộ theo Tên trong SpotifyService
+                    // Hàm này sẽ tự: Tìm ID thật -> Lấy Ảnh -> Lưu vào DB
+                    spotifyService.syncFullArtistData(artist);
+
+                    System.out.println("✅ Đang xử lý: " + artist.getName());
+                    count++;
+                } catch (Exception e) {
+                    System.err.println("❌ Lỗi đồng bộ cho: " + artist.getName() + " - " + e.getMessage());
+                }
+            }
+        }
+
+        return ResponseEntity.ok("Đã xử lý đồng bộ cho " + count + " nghệ sĩ. Hãy reload lại trang web!");
+    }
+
 }

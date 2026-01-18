@@ -23,6 +23,7 @@ public class Song {
     private String artistName; 
     private String artistId;
     private String albumId;
+     private String categoryId; // ID danh mục bài hát
 
     private int duration;
     private Long durationMs; // Đơn vị: mili-giây

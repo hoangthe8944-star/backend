@@ -1,7 +1,9 @@
 package com.example.beatboxcompany.Service;
 
 import com.example.beatboxcompany.Entity.Artist;
+import com.example.beatboxcompany.Dto.AlbumDto;
 import com.example.beatboxcompany.Dto.ArtistDto;
+import com.example.beatboxcompany.Dto.SongDto;
 
 import java.util.List;
 
@@ -26,4 +28,12 @@ public interface ArtistService {
     List<ArtistDto> getAllArtists();
 
     ArtistDto adminUpdateName(String artistId, String newName);
+
+    List<ArtistDto> getArtistsByGenre(String genreSlug);
+
+    ArtistDto syncArtistFromSpotify(String artistId, String spotifyArtistId);
+
+    List<SongDto> getSongsByArtistId(String artistId);
+
+    List<AlbumDto> getAlbumsByArtistId(String artistId);
 }

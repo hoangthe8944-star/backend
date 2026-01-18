@@ -25,4 +25,6 @@ public interface SongRepository extends MongoRepository<Song, String> {
     boolean existsByTitleIgnoreCaseAndArtistNameIgnoreCase(String title, String artistName);
 
     List<Song> findByStatusAndLastPlayedAtIsNotNullOrderByLastPlayedAtDesc(String status);
+
+     List<Song> findByCategoryId(String categoryId);
 }

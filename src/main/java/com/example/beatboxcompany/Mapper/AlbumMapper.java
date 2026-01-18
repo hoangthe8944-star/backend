@@ -15,36 +15,53 @@ import java.util.stream.Collectors;
 @Component
 public class AlbumMapper {
 
-    @Autowired
-    private ArtistRepository artistRepository;
+ private final ArtistRepository artistRepository;
+    private final SongRepository songRepository;
 
     @Autowired
-    private SongRepository songRepository;
-
+    public AlbumMapper(ArtistRepository artistRepository,
+                       SongRepository songRepository) {
+        this.artistRepository = artistRepository;
+        this.songRepository = songRepository;
+    }
     // --- 1. Mapper chi tiết (Dùng khi xem chi tiết Album) ---
     public AlbumDto toFullDto(Album album) {
-        AlbumDto dto = toSimpleDto(album); // Tái sử dụng logic map cơ bản
+        AlbumDto dto = toSimpleDto(album);
 
-        // Map danh sách bài hát (Tracks)
         if (album.getTrackIds() != null && !album.getTrackIds().isEmpty()) {
             List<TrackDto> tracks = album.getTrackIds().stream()
-                .map(songId -> songRepository.findById(songId).orElse(null))
-                .filter(song -> song != null)
-                .map(song -> {
-                    TrackDto trackDto = new TrackDto();
-                    trackDto.setSongId(song.getId());
-                    trackDto.setTitle(song.getTitle());
-                    trackDto.setDurationMs(song.getDurationMs());
-                    // Format thời lượng track: mm:ss
-                    long s = (song.getDurationMs() / 1000) % 60;
-                    long m = (song.getDurationMs() / 1000) / 60;
-                    trackDto.setDurationText(String.format("%02d:%02d", m, s));
-                    
-                    trackDto.setIsExplicit(song.getIsExplicit() != null && song.getIsExplicit());
-                    trackDto.setStreamUrl("http://localhost:8080/api/public/songs/stream/" + song.getFilePath());
-                    return trackDto;
-                })
-                .collect(Collectors.toList());
+                    .map(songId -> songRepository.findById(songId).orElse(null))
+                    .filter(song -> song != null)
+                    .map(song -> {
+
+                        TrackDto trackDto = new TrackDto();
+                        trackDto.setSongId(song.getId());
+                        trackDto.setTitle(song.getTitle());
+
+                        Long durationMs = song.getDurationMs();
+                        if (durationMs == null)
+                            durationMs = 0L;
+
+                        trackDto.setDurationMs(durationMs);
+
+                        long totalSeconds = durationMs / 1000;
+                        long m = totalSeconds / 60;
+                        long s = totalSeconds % 60;
+
+                        trackDto.setDurationText(String.format("%02d:%02d", m, s));
+
+                        trackDto.setIsExplicit(Boolean.TRUE.equals(song.getIsExplicit()));
+
+                        if (song.getFilePath() != null) {
+                            trackDto.setStreamUrl(
+                                    "http://localhost:8081/api/public/songs/stream/" + song.getFilePath());
+                        } else {
+                            trackDto.setStreamUrl(song.getStreamUrl());
+                        }
+
+                        return trackDto;
+                    })
+                    .collect(Collectors.toList());
 
             dto.setTracks(tracks);
         } else {
@@ -62,25 +79,24 @@ public class AlbumMapper {
         dto.setReleaseDate(album.getReleaseDate());
         dto.setCoverUrl(album.getCoverUrl());
         dto.setStatus(album.getStatus());
-        
+
         // Map các trường thống kê (Khớp với AlbumDto đã sửa)
-        dto.setSongCount(album.getTotalTracks()); 
-        
+        dto.setSongCount(album.getTotalTracks());
+
         // Format thời lượng tổng (mm:ss)
         long totalMs = album.getTotalDurationMs() != null ? album.getTotalDurationMs() : 0;
         long minutes = (totalMs / 1000) / 60;
         long seconds = (totalMs / 1000) % 60;
         dto.setTotalDuration(String.format("%02d:%02d", minutes, seconds));
-        
+
         dto.setTotalStreams(0L); // Fake data hoặc tính tổng sau
 
         // Lấy tên Artist
         if (album.getArtistId() != null) {
             artistRepository.findById(album.getArtistId())
                     .ifPresentOrElse(
-                        artist -> dto.setArtistName(artist.getName()),
-                        () -> dto.setArtistName("Unknown Artist")
-                    );
+                            artist -> dto.setArtistName(artist.getName()),
+                            () -> dto.setArtistName("Unknown Artist"));
         }
 
         return dto;

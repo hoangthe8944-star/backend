@@ -1,10 +1,14 @@
 package com.example.beatboxcompany.Controller;
 
 import com.example.beatboxcompany.Dto.AlbumDto;
+import com.example.beatboxcompany.Dto.ArtistDto;
 import com.example.beatboxcompany.Dto.CommentDto;
 import com.example.beatboxcompany.Dto.PlaylistDto;
 import com.example.beatboxcompany.Dto.SongDto;
+import com.example.beatboxcompany.Entity.Song;
+import com.example.beatboxcompany.Repository.SongRepository;
 import com.example.beatboxcompany.Service.AlbumService;
+import com.example.beatboxcompany.Service.ArtistService;
 import com.example.beatboxcompany.Service.CommentService;
 import com.example.beatboxcompany.Service.PlaylistService;
 import com.example.beatboxcompany.Service.SongService; // Import Interface
@@ -32,6 +36,8 @@ public class PublicController {
     private final AlbumService albumService;
     private final PlaylistService playlistService;
     private final CommentService commentService;
+    private final SongRepository songRepository;
+    private final ArtistService artistService;
 
     // Đường dẫn file nhạc để stream (Giữ lại theo yêu cầu)
     private final Path fileStorageLocation = Paths.get("uploads").toAbsolutePath().normalize();
@@ -40,11 +46,15 @@ public class PublicController {
             SongService songService,
             AlbumService albumService,
             PlaylistService playlistService,
-            CommentService commentService) {
+            SongRepository songRepository,
+            CommentService commentService,
+            ArtistService artistService) {
         this.songService = songService;
         this.albumService = albumService;
         this.playlistService = playlistService;
         this.commentService = commentService;
+        this.songRepository = songRepository;
+        this.artistService = artistService;
     }
 
     // --- 1. Tìm kiếm và Trending ---
@@ -155,5 +165,39 @@ public class PublicController {
     public ResponseEntity<List<SongDto>> getAllPublicSongs() {
         // Lấy tất cả bài hát có status là "PUBLISHED"
         return ResponseEntity.ok(songService.getSongsByStatus("PUBLISHED"));
+    }
+    @GetMapping("/songs/category/{categoryId}")
+    public ResponseEntity<List<Song>> getSongsByCategory(@PathVariable String categoryId) {
+        List<Song> songs = songRepository.findByCategoryId(categoryId);
+        return ResponseEntity.ok(songs);
+    }
+     @GetMapping("/artists")
+    public ResponseEntity<List<ArtistDto>> getAllArtists() {
+        return ResponseEntity.ok(artistService.getAllArtists());
+    }
+
+    // Lấy chi tiết nghệ sĩ cho trang ArtistPage
+    @GetMapping("/artists/{id}")
+    public ResponseEntity<ArtistDto> getArtistById(@PathVariable String id) {
+        return ResponseEntity.ok(artistService.getPublicArtistProfile(id));
+    }
+
+    // Lấy nghệ sĩ theo thể loại cho trang Category
+    @GetMapping("/artists/genre/{genre}")
+    public ResponseEntity<List<ArtistDto>> getArtistsByGenre(@PathVariable String genre) {
+        return ResponseEntity.ok(artistService.getArtistsByGenre(genre));
+    }
+    // Lấy TẤT CẢ bài hát của một nghệ sĩ
+    // GET http://localhost:8081/api/public/songs/artist/{artistId}
+    @GetMapping("/songs/artists/{artistId}")
+    public ResponseEntity<List<SongDto>> getSongsByArtist(@PathVariable String artistId) {
+        return ResponseEntity.ok(artistService.getSongsByArtistId(artistId));
+    }
+
+    // Lấy TẤT CẢ album của một nghệ sĩ
+    // GET http://localhost:8081/api/public/albums/artist/{artistId}
+    @GetMapping("/albums/artists/{artistId}")
+    public ResponseEntity<List<AlbumDto>> getAlbumsByArtist(@PathVariable String artistId) {
+        return ResponseEntity.ok(artistService.getAlbumsByArtistId(artistId));
     }
 }
