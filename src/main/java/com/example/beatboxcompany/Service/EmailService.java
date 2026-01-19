@@ -17,7 +17,6 @@ public class EmailService {
 
     public void sendVerificationEmail(String toEmail, String token) {
         // Link này trỏ về trang GitHub Pages của bạn
-        // String verificationLink = "https://hoangthe8944-star.github.io/boxonline/#/verify?token=" + token;
         String verificationLink = "https://hoangthe8944-star.github.io/boxonline/#/verify?token=" + token;
 
         Map<String, Object> body = new HashMap<>();
