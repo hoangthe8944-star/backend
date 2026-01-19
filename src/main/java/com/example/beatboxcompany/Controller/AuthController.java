@@ -24,7 +24,7 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-@CrossOrigin(origins = { "http://localhost:5173", "https://hoangthe8944-star.github.io" }, allowCredentials = "true")
+@CrossOrigin(origins = { "http://localhost:5173", "https://hoangthe8944-star.github.io/boxonline/" }, allowCredentials = "true")
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
