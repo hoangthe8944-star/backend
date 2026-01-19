@@ -91,7 +91,7 @@ public class SecurityConfig {
 
                             String token = jwtService.generateToken(email);
 
-                            String targetUrl = "https://hoangthe8944-star.github.io/boxonline/#/login-success?token="
+                            String targetUrl = "https://boxonline-htk1do1rm-thes-projects-667db5e0.vercel.app/#/login-success?token="
                                     + token;
                             response.sendRedirect(targetUrl);
                         }))
