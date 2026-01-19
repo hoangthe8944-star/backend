@@ -17,7 +17,8 @@ public class EmailService {
 
     public void sendVerificationEmail(String toEmail, String token) {
         // Link này trỏ về trang GitHub Pages của bạn
-        String verificationLink = "https://hoangthe8944-star.github.io/boxonline/#/verify?token=" + token;
+        // String verificationLink = "https://hoangthe8944-star.github.io/boxonline/#/verify?token=" + token;
+        String verificationLink = "https://boxonline-8yuu7hylz-thes-projects-667db5e0.vercel.app/#/verify?token=" + token;
 
         Map<String, Object> body = new HashMap<>();
         body.put("from", "BeatBox <onboarding@resend.dev>"); // Resend cho phép dùng email này để test
