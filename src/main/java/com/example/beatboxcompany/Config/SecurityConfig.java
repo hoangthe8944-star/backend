@@ -35,95 +35,105 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final CustomUserDetailsService customUserDetailsService;
-    private final JwtService jwtService;
-    private final CustomOAuth2UserService oauth2UserService;
+        private final JwtAuthenticationFilter jwtAuthenticationFilter;
+        private final CustomUserDetailsService customUserDetailsService;
+        private final JwtService jwtService;
+        private final CustomOAuth2UserService oauth2UserService;
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+        @Bean
+        public PasswordEncoder passwordEncoder() {
+                return new BCryptPasswordEncoder();
+        }
 
-    @Bean
-    public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(customUserDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder());
-        return authProvider;
-    }
+        @Bean
+        public AuthenticationProvider authenticationProvider() {
+                DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+                authProvider.setUserDetailsService(customUserDetailsService);
+                authProvider.setPasswordEncoder(passwordEncoder());
+                return authProvider;
+        }
 
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
-    }
+        @Bean
+        public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+                return config.getAuthenticationManager();
+        }
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                // 1. Dùng IF_REQUIRED để giữ session tạm cho Google OAuth2
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+        @Bean
+        public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+                http
+                                .csrf(csrf -> csrf.disable())
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                                // 1. Dùng IF_REQUIRED để giữ session tạm cho Google OAuth2
+                                .sessionManagement(session -> session
+                                                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
 
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/api/public/**", "/api/songs/**", "/api/v1/lyrics/**",
-                                "/api/playlists/**", "/api/history/**", "/api/categories/**", "/api/artists/**")
-                        .permitAll()
-                        .requestMatchers("/oauth2/**", "/login/oauth2/**", "/error", "/favicon.ico").permitAll()
-                        .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
-                        .anyRequest().authenticated())
+                                .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers("/api/auth/**", "/api/public/**", "/api/songs/**",
+                                                                "/api/v1/lyrics/**",
+                                                                "/api/playlists/**", "/api/history/**",
+                                                                "/api/categories/**", "/api/artists/**",
+                                                                "/api/live/active")
+                                                .permitAll()
+                                                .requestMatchers("/oauth2/**", "/login/oauth2/**", "/error",
+                                                                "/favicon.ico")
+                                                .permitAll()
+                                                .requestMatchers("/api/live/start", "/api/live/end/**").authenticated()
+                                                .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
+                                                .anyRequest().authenticated())
 
-                // ✅ QUAN TRỌNG: Nếu API lỗi, trả về 401 chứ KHÔNG chuyển hướng sang Google
-                .exceptionHandling(e -> e
-                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+                                // ✅ QUAN TRỌNG: Nếu API lỗi, trả về 401 chứ KHÔNG chuyển hướng sang Google
+                                .exceptionHandling(e -> e
+                                                .authenticationEntryPoint(
+                                                                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
 
-                .oauth2Login(oauth2 -> oauth2
-                        .userInfoEndpoint(u -> u.oidcUserService(oauth2UserService))
-                        .successHandler((request, response, authentication) -> {
-                            OidcUser oidcUser = (OidcUser) authentication.getPrincipal();
+                                .oauth2Login(oauth2 -> oauth2
+                                                .userInfoEndpoint(u -> u.oidcUserService(oauth2UserService))
+                                                .successHandler((request, response, authentication) -> {
+                                                        OidcUser oidcUser = (OidcUser) authentication.getPrincipal();
 
-                            // ✅ PHẢI lấy Email, đừng lấy oidcUser.getName() vì nó có thể trả về Google ID
-                            // (dãy số)
-                            String email = oidcUser.getEmail();
+                                                        // ✅ PHẢI lấy Email, đừng lấy oidcUser.getName() vì nó có thể
+                                                        // trả về Google ID
+                                                        // (dãy số)
+                                                        String email = oidcUser.getEmail();
 
-                            System.out.println("===> JWT DEBUG: Đang tạo Token cho Email: " + email);
+                                                        System.out.println("===> JWT DEBUG: Đang tạo Token cho Email: "
+                                                                        + email);
 
-                            String token = jwtService.generateToken(email);
+                                                        String token = jwtService.generateToken(email);
 
-                            String targetUrl = "https://hoangthe8944-star.github.io/boxonline/#/login-success?token="
-                                    + token;
-                            response.sendRedirect(targetUrl);
-                        }))
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                                                        String targetUrl = "https://hoangthe8944-star.github.io/boxonline/#/login-success?token="
+                                                                        + token;
+                                                        response.sendRedirect(targetUrl);
+                                                }))
+                                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-        return http.build();
-    }
+                return http.build();
+        }
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of(
-                "http://10.18.6.181",
-                "http://10.18.6.181:*",
-                "http://localhost:*",
-                "http://127.0.0.1:*",
-                "https://boxonline-git-main-thes-projects-667db5e0.vercel.app/",
-                "https://hoangthe8944-star.github.io/boxonline/"));
-        // ✅ DEV: cho phép mọi origin (không phụ thuộc IP / WiFi)
-        config.setAllowedOriginPatterns(List.of("*"));
+        @Bean
+        public CorsConfigurationSource corsConfigurationSource() {
+                CorsConfiguration config = new CorsConfiguration();
+                config.setAllowedOriginPatterns(List.of(
+                                "http://10.18.6.181",
+                                "http://10.18.6.181:*",
+                                "http://localhost:*",
+                                "http://127.0.0.1:*",
+                                "https://boxonline-git-main-thes-projects-667db5e0.vercel.app/",
+                                "https://hoangthe8944-star.github.io/boxonline/"));
+                // ✅ DEV: cho phép mọi origin (không phụ thuộc IP / WiFi)
+                // config.setAllowedOriginPatterns(List.of("*"));
 
-        config.setAllowedMethods(List.of(
-                "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+                config.setAllowedMethods(List.of(
+                                "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
 
-        config.setAllowedHeaders(List.of("*"));
+                config.setAllowedHeaders(List.of("*"));
 
-        // ✅ BẮT BUỘC vì bạn dùng JWT / OAuth2
-        config.setAllowCredentials(true);
+                // ✅ BẮT BUỘC vì bạn dùng JWT / OAuth2
+                config.setAllowCredentials(true);
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/**", config);
 
-        return source;
-    }
+                return source;
+        }
 }

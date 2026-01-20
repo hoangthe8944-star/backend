@@ -46,4 +46,8 @@ public class User implements UserDetails {
                 .map(role -> new SimpleGrantedAuthority(role)) // Không được để role là ""
                 .collect(Collectors.toList());
     }
+
+    private String otp;
+    private LocalDateTime otpExpiry;
+    private boolean enabled = false; 
 }

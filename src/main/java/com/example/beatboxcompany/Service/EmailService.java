@@ -2,8 +2,15 @@ package com.example.beatboxcompany.Service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
+
 import java.util.*;
 
 @Service
@@ -14,6 +21,11 @@ public class EmailService {
 
     private final String RESEND_API_URL = "https://api.resend.com/emails";
     private final RestTemplate restTemplate = new RestTemplate();
+    private final JavaMailSender mailSender;
+
+    public EmailService(JavaMailSender mailSender) {
+        this.mailSender = mailSender;
+    }
 
     public void sendVerificationEmail(String toEmail, String token) {
         // Link này trỏ về trang GitHub Pages của bạn
@@ -54,7 +66,8 @@ public class EmailService {
     public void sendLinkEmail(String to, String token) {
         // Link này sẽ gọi trực tiếp về Backend để xử lý confirm
         String link = "https://backend-jfn4.onrender.com/api/auth/link-confirm?token=" + token + "&email=" + to;
-        sendRequest(to, "[BeatBox] Liên kết email phụ", "Nhấn vào đây để liên kết email này với tài khoản của bạn: " + link);
+        sendRequest(to, "[BeatBox] Liên kết email phụ",
+                "Nhấn vào đây để liên kết email này với tài khoản của bạn: " + link);
     }
 
     private void sendRequest(String to, String subject, String content) {
@@ -69,5 +82,33 @@ public class EmailService {
         body.put("html", "<h3>" + subject + "</h3><p>" + content + "</p>");
 
         restTemplate.postForEntity(RESEND_API_URL, new HttpEntity<>(body, headers), String.class);
+    }
+
+    public void sendOtpEmail(String toEmail, String otp) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom("BeatBox <hoangthe8944@gmail.com>");
+            helper.setTo(toEmail);
+            helper.setSubject("[BeatBox] Mã xác thực OTP của bạn");
+
+            String htmlContent = "<div style='font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 10px;'>"
+                    +
+                    "   <h2 style='color: #00ced1;'>Xác thực tài khoản BeatBox</h2>" +
+                    "   <p>Chào bạn, mã OTP để hoàn tất đăng ký của bạn là:</p>" +
+                    "   <h1 style='font-size: 48px; letter-spacing: 10px; color: #333; margin: 20px 0;'>" + otp
+                    + "</h1>" +
+                    "   <p style='color: #777;'>Mã có hiệu lực trong vòng 5 phút.</p>" +
+                    "</div>";
+
+            helper.setText(htmlContent, true);
+            mailSender.send(message);
+
+            System.out.println(">>> Đã gửi OTP thành công tới: " + toEmail);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Lỗi gửi mail: " + e.getMessage());
+        }
     }
 }

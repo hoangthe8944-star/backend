@@ -4,6 +4,7 @@ import com.example.beatboxcompany.Dto.JwtResponse;
 import com.example.beatboxcompany.Entity.User;
 import com.example.beatboxcompany.Repository.UserRepository;
 import com.example.beatboxcompany.Request.LoginRequest;
+import com.example.beatboxcompany.Request.RegisterRequest;
 import com.example.beatboxcompany.Security.JwtService;
 import com.example.beatboxcompany.Service.EmailService;
 import jakarta.validation.Valid;
@@ -24,7 +25,8 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-@CrossOrigin(origins = { "http://localhost:5173", "https://hoangthe8944-star.github.io/boxonline/" , "https://boxonline-git-main-thes-projects-667db5e0.vercel.app/"}, allowCredentials = "true")
+@CrossOrigin(origins = { "http://localhost:5173", "https://hoangthe8944-star.github.io",
+        "https://hoangthe8944-star.github.io/boxonline/" }, allowCredentials = "true")
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
@@ -33,27 +35,104 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
-    // 1. ĐĂNG KÝ (Instant Auth - Vào luôn không cần check mail)
-    // 1. ĐĂNG KÝ: Lưu DB và bắt xác thực
+    // ============================================================
+    // 1. ĐĂNG KÝ (Gửi OTP)
+    // ============================================================
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody User user) {
-        if (userRepository.existsByEmail(user.getEmail())) {
-            return ResponseEntity.badRequest().body("Email đã tồn tại!");
+    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+        try {
+            // Kiểm tra email đã tồn tại chưa
+            if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("Email này đã được sử dụng!");
+            }
+
+            // Tạo mã OTP 6 con số
+            String otp = String.format("%06d", new Random().nextInt(1000000));
+
+            // Khởi tạo User mới
+            User user = new User();
+            user.setUsername(request.getUsername());
+            user.setEmail(request.getEmail());
+            user.setPassword(passwordEncoder.encode(request.getPassword()));
+            user.setRoles(new ArrayList<>(Collections.singleton("ROLE_USER")));
+
+            // Các trường phục vụ xác thực OTP
+            user.setEnabled(false); // Chưa cho phép đăng nhập
+            user.setOtp(otp);
+            user.setOtpExpiry(LocalDateTime.now().plusMinutes(5)); // Mã có hiệu lực 5 phút
+
+            userRepository.save(user);
+
+            // GỬI MAIL QUA GMAIL
+            emailService.sendOtpEmail(user.getEmail(), otp);
+
+            return ResponseEntity.ok("Mã xác thực đã được gửi vào Email của bạn.");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi hệ thống khi đăng ký: " + e.getMessage());
         }
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setVerified(false); // ✅ Bắt buộc xác thực
-
-        String token = UUID.randomUUID().toString();
-        user.setVerificationToken(token);
-        user.setTokenExpiry(LocalDateTime.now().plusHours(24));
-
-        userRepository.save(user);
-        emailService.sendVerificationEmail(user.getEmail(), token); // Gửi mail qua Resend
-
-        return ResponseEntity.ok("Đăng ký thành công! Vui lòng kiểm tra email để kích hoạt.");
     }
 
-    // 2. ĐĂNG NHẬP: Chặn nếu chưa xác thực
+    // ============================================================
+    // 2. XÁC THỰC OTP (Nếu đúng -> Kích hoạt tài khoản -> Trả về Token luôn)
+    // ============================================================
+    @PostMapping("/verify-otp")
+    public ResponseEntity<?> verifyOtp(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String otp = request.get("otp");
+
+        User user = userRepository.findByEmail(email)
+                .orElse(null);
+
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Không tìm thấy thông tin đăng ký.");
+        }
+
+        // Kiểm tra mã OTP và thời gian hết hạn
+        if (user.getOtp() != null &&
+                user.getOtp().equals(otp) &&
+                user.getOtpExpiry().isAfter(LocalDateTime.now())) {
+
+            user.setEnabled(true); // Kích hoạt tài khoản thành công
+            user.setOtp(null); // Xóa mã OTP để bảo mật
+            user.setOtpExpiry(null);
+            userRepository.save(user);
+
+            // Tự động tạo Token để người dùng vào App ngay không cần login lại
+            String token = jwtService.generateToken(user.getEmail());
+            return ResponseEntity.ok(new JwtResponse(
+                    token, user.getId(), user.getUsername(), user.getEmail(), user.getRoles(), true));
+        }
+
+        return ResponseEntity.badRequest().body("Mã OTP không chính xác hoặc đã hết hạn!");
+    }
+
+    // ============================================================
+    // 3. ĐĂNG NHẬP (Chặn nếu chưa xác thực OTP)
+    // ============================================================
+    // @PostMapping("/login")
+    // public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
+    // User user = userRepository.findByEmail(request.getEmail())
+    // .orElseThrow(() -> new RuntimeException("Tài khoản không tồn tại."));
+
+    // // Kiểm tra Enabled
+    // if (!user.isEnabled()) {
+    // return ResponseEntity.status(HttpStatus.FORBIDDEN)
+    // .body("Vui lòng xác thực mã OTP gửi qua Email trước khi đăng nhập!");
+    // }
+
+    // authenticationManager.authenticate(
+    // new UsernamePasswordAuthenticationToken(request.getEmail(),
+    // request.getPassword()));
+
+    // String token = jwtService.generateToken(user.getEmail());
+    // return ResponseEntity.ok(new JwtResponse(
+    // token, user.getId(), user.getUsername(), user.getEmail(), user.getRoles(),
+    // true));
+    // }
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
