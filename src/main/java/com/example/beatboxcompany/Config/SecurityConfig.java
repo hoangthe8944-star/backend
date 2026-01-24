@@ -119,7 +119,7 @@ public class SecurityConfig {
                                 "http://localhost:*",
                                 "http://127.0.0.1:*",
                                 "https://boxonline-git-main-thes-projects-667db5e0.vercel.app/",
-                                "https://hoangthe8944-star.github.io/boxonline/"));
+                                "https://hoangthe8944-star.github.io"));
                 // ✅ DEV: cho phép mọi origin (không phụ thuộc IP / WiFi)
                 // config.setAllowedOriginPatterns(List.of("*"));
 
