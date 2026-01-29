@@ -68,16 +68,22 @@ public class SecurityConfig {
                                                 .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
 
                                 .authorizeHttpRequests(auth -> auth
+
                                                 .requestMatchers("/api/auth/**", "/api/public/**", "/api/songs/**",
-                                                                "/api/v1/lyrics/**",
-                                                                "/api/playlists/**", "/api/history/**",
-                                                                "/api/categories/**", "/api/artists/**",
-                                                                "/api/live/active")
+                                                                "/api/v1/lyrics/**", "/api/playlists/**",
+                                                                "/api/history/**", "/api/ai/**",
+                                                                "/api/categories/**", "/api/artists/**")
                                                 .permitAll()
+
+                                                // Live APIs
+                                                .requestMatchers("/api/live/zego-token").authenticated()
+                                                .requestMatchers("/api/live/start", "/api/live/end/**").authenticated()
+                                                .requestMatchers("/api/live/active").permitAll()
+
                                                 .requestMatchers("/oauth2/**", "/login/oauth2/**", "/error",
                                                                 "/favicon.ico")
                                                 .permitAll()
-                                                .requestMatchers("/api/live/start", "/api/live/end/**").authenticated()
+
                                                 .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
                                                 .anyRequest().authenticated())
 
@@ -114,12 +120,15 @@ public class SecurityConfig {
         public CorsConfigurationSource corsConfigurationSource() {
                 CorsConfiguration config = new CorsConfiguration();
                 config.setAllowedOriginPatterns(List.of(
+                                "http://localhost",
+                                "http://localhost:3000",
+                                "http://localhost:5173",
+                                "http://127.0.0.1:5173",
                                 "http://10.18.6.181",
-                                "http://10.18.6.181:*",
-                                "http://localhost:*",
-                                "http://127.0.0.1:*",
-                                "https://boxonline-git-main-thes-projects-667db5e0.vercel.app/",
+                                "http://10.18.6.181:3000",
+                                "https://boxonline-git-main-thes-projects-667db5e0.vercel.app",
                                 "https://hoangthe8944-star.github.io"));
+
                 // ✅ DEV: cho phép mọi origin (không phụ thuộc IP / WiFi)
                 // config.setAllowedOriginPatterns(List.of("*"));
 

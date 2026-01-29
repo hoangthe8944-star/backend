@@ -50,4 +50,5 @@ public class User implements UserDetails {
     private String otp;
     private LocalDateTime otpExpiry;
     private boolean enabled = false; 
+    private Long coins = 0L;
 }
