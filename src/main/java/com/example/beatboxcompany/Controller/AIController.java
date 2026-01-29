@@ -25,7 +25,7 @@ public class AIController {
         
         // BƯỚC 1: Dán API Key Groq của bạn vào đây
         // Lấy tại: https://console.groq.com/keys
-        String groqKey = "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"; 
+        String groqKey = apiKey; 
         
         String url = "https://api.groq.com/openai/v1/chat/completions";
 
