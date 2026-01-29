@@ -63,10 +63,26 @@ public class PublicController {
      * [ĐÃ CHỈNH SỬA]
      * API Tìm kiếm công khai.
      * Sử dụng logic tìm kiếm thông minh mới: ưu tiên tìm nghệ sĩ trước.
+<<<<<<< HEAD
      */
     @GetMapping("/search")
     public ResponseEntity<List<SongDto>> search(@RequestParam("q") String query) {
         // THAY ĐỔI DUY NHẤT: Gọi đến hàm `searchPublicSongs` thay vì `searchSongs`
+=======
+     * Hỗ trợ lọc theo thể loại (category) nếu có categoryId.
+     */
+    @GetMapping("/search")
+    public ResponseEntity<List<SongDto>> search(
+            @RequestParam("q") String query,
+            @RequestParam(value = "categoryId", required = false) String categoryId) {
+
+        // Nếu có categoryId, gọi hàm search có lọc
+        if (categoryId != null && !categoryId.trim().isEmpty()) {
+            return ResponseEntity.ok(songService.searchPublicSongs(query, categoryId));
+        }
+
+        // Nếu không có categoryId, gọi hàm search thông thường
+>>>>>>> c4ff2b6 (Mới chỉnh lọc Search theo mụ)
         return ResponseEntity.ok(songService.searchPublicSongs(query));
     }
 
@@ -166,12 +182,21 @@ public class PublicController {
         // Lấy tất cả bài hát có status là "PUBLISHED"
         return ResponseEntity.ok(songService.getSongsByStatus("PUBLISHED"));
     }
+<<<<<<< HEAD
+=======
+
+>>>>>>> c4ff2b6 (Mới chỉnh lọc Search theo mụ)
     @GetMapping("/songs/category/{categoryId}")
     public ResponseEntity<List<Song>> getSongsByCategory(@PathVariable String categoryId) {
         List<Song> songs = songRepository.findByCategoryId(categoryId);
         return ResponseEntity.ok(songs);
     }
+<<<<<<< HEAD
      @GetMapping("/artists")
+=======
+
+    @GetMapping("/artists")
+>>>>>>> c4ff2b6 (Mới chỉnh lọc Search theo mụ)
     public ResponseEntity<List<ArtistDto>> getAllArtists() {
         return ResponseEntity.ok(artistService.getAllArtists());
     }
@@ -187,6 +212,10 @@ public class PublicController {
     public ResponseEntity<List<ArtistDto>> getArtistsByGenre(@PathVariable String genre) {
         return ResponseEntity.ok(artistService.getArtistsByGenre(genre));
     }
+<<<<<<< HEAD
+=======
+
+>>>>>>> c4ff2b6 (Mới chỉnh lọc Search theo mụ)
     // Lấy TẤT CẢ bài hát của một nghệ sĩ
     // GET http://localhost:8081/api/public/songs/artist/{artistId}
     @GetMapping("/songs/artists/{artistId}")

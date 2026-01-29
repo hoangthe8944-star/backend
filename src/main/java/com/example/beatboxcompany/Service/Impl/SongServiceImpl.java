@@ -446,6 +446,41 @@ public class SongServiceImpl implements SongService {
                 .collect(Collectors.toList());
     }
 
+<<<<<<< HEAD
+=======
+    /**
+     * [MỚI THÊM]
+     * Phương thức tìm kiếm có lọc theo thể loại (category).
+     * Ưu tiên tìm nghệ sĩ trước, sau đó lọc theo category.
+     */
+    @Override
+    public List<SongDto> searchPublicSongs(String query, String categoryId) {
+        // Nếu không có categoryId, gọi hàm search thông thường
+        if (categoryId == null || categoryId.trim().isEmpty()) {
+            return searchPublicSongs(query);
+        }
+
+        // Bước 1: Thử tìm nghệ sĩ có tên khớp
+        Optional<Artist> artistOptional = artistRepository.findByNameIgnoreCase(query);
+
+        // Bước 2: Nếu tìm thấy nghệ sĩ, lọc bài hát của họ theo category
+        if (artistOptional.isPresent()) {
+            Artist artist = artistOptional.get();
+            return songRepository.findByArtistId(artist.getId()).stream()
+                    .filter(song -> categoryId.equals(song.getCategoryId()))
+                    .map(this::convertToDto)
+                    .collect(Collectors.toList());
+        }
+
+        // Bước 3: Nếu không tìm thấy nghệ sĩ, tìm kiếm rộng với filter category
+        return songRepository.findByTitleContainingIgnoreCaseAndCategoryIdOrArtistNameContainingIgnoreCaseAndCategoryId(
+                query, categoryId, query, categoryId)
+                .stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+>>>>>>> c4ff2b6 (Mới chỉnh lọc Search theo mụ)
     @Override
     @Transactional
     public void recordSongPlayback(String songId) {

@@ -9,6 +9,7 @@ import java.util.List;
 @Repository
 public interface SongRepository extends MongoRepository<Song, String> {
 
+<<<<<<< HEAD
     // Dùng cho ArtistController (Xem bài hát đã upload)
     List<Song> findByArtistId(String artistId);
 
@@ -27,4 +28,29 @@ public interface SongRepository extends MongoRepository<Song, String> {
     List<Song> findByStatusAndLastPlayedAtIsNotNullOrderByLastPlayedAtDesc(String status);
 
      List<Song> findByCategoryId(String categoryId);
+=======
+        // Dùng cho ArtistController (Xem bài hát đã upload)
+        List<Song> findByArtistId(String artistId);
+
+        // Dùng cho AdminController (Lấy danh sách chờ duyệt)
+        List<Song> findByStatus(String status);
+
+        // Dùng cho PublicController (Bài hát đã PUBLISHED)
+        List<Song> findByStatusAndAlbumId(String status, String albumId);
+
+        // Dùng cho PublicController (Bài hát Hot)
+        List<Song> findByTitleContainingIgnoreCaseOrArtistNameContainingIgnoreCase(String titleKeyword,
+                        String artistKeyword);
+
+        boolean existsByTitleIgnoreCaseAndArtistNameIgnoreCase(String title, String artistName);
+
+        List<Song> findByStatusAndLastPlayedAtIsNotNullOrderByLastPlayedAtDesc(String status);
+
+        List<Song> findByCategoryId(String categoryId);
+
+        // Tìm kiếm bài hát theo title hoặc artist name, có thể lọc theo categoryId (nếu
+        // có)
+        List<Song> findByTitleContainingIgnoreCaseAndCategoryIdOrArtistNameContainingIgnoreCaseAndCategoryId(
+                        String titleKeyword, String categoryId1, String artistKeyword, String categoryId2);
+>>>>>>> c4ff2b6 (Mới chỉnh lọc Search theo mụ)
 }
