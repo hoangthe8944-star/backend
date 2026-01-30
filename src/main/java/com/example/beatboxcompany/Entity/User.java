@@ -49,6 +49,11 @@ public class User implements UserDetails {
 
     private String otp;
     private LocalDateTime otpExpiry;
-    private boolean enabled = false; 
+    private boolean enabled = false;
     private Long coins = 0L;
+
+    // Premium/VIP subscription fields
+    private Boolean isPremium = false;
+    private LocalDateTime premiumExpiry;
+    private String premiumType; // "monthly" hoặc "yearly"
 }
