@@ -446,8 +446,7 @@ public class SongServiceImpl implements SongService {
                 .collect(Collectors.toList());
     }
 
-<<<<<<< HEAD
-=======
+
     /**
      * [MỚI THÊM]
      * Phương thức tìm kiếm có lọc theo thể loại (category).
@@ -480,7 +479,6 @@ public class SongServiceImpl implements SongService {
                 .collect(Collectors.toList());
     }
 
->>>>>>> c4ff2b6 (Mới chỉnh lọc Search theo mụ)
     @Override
     @Transactional
     public void recordSongPlayback(String songId) {

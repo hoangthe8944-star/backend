@@ -41,17 +41,11 @@ public interface SongService {
         List<SongDto> getTrendingPublishedSongs(int limit);
 
         void uploadSongFile(String songId, MultipartFile file) throws IOException;
-<<<<<<< HEAD
-        
-        List<SongDto> searchPublicSongs(String query);
-
-=======
 
         List<SongDto> searchPublicSongs(String query);
 
         List<SongDto> searchPublicSongs(String query, String categoryId);
 
->>>>>>> c4ff2b6 (Mới chỉnh lọc Search theo mụ)
         void recordSongPlayback(String songId);
 
         List<SongDto> getRecentlyPlayedSongs(int limit);
