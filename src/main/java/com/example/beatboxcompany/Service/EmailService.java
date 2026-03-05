@@ -65,7 +65,7 @@ public class EmailService {
     // Gửi mail liên kết tài khoản
     public void sendLinkEmail(String to, String token) {
         // Link này sẽ gọi trực tiếp về Backend để xử lý confirm
-        String link = "https://backend-jfn4.onrender.com/api/auth/link-confirm?token=" + token + "&email=" + to;
+        String link = "https://backendjava-jfn4.onrender.com/api/auth/link-confirm?token=" + token + "&email=" + to;
         sendRequest(to, "[BeatBox] Liên kết email phụ",
                 "Nhấn vào đây để liên kết email này với tài khoản của bạn: " + link);
     }
