@@ -37,6 +37,7 @@ public class AlbumServiceImpl implements AlbumService {
     // --- 1. IMPORT TỪ SPOTIFY (Logic mới) ---
     @Override
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = {"albumDetail", "home"}, allEntries = true)
     public void importAlbumFromSpotify(String spotifyAlbumId) {
         // 1. Lấy dữ liệu từ Spotify
         Map<String, Object> data = spotifyService.getAlbumDetails(spotifyAlbumId);
@@ -48,25 +49,42 @@ public class AlbumServiceImpl implements AlbumService {
         String coverUrl = images != null && !images.isEmpty() ? (String) images.get(0).get("url") : "";
 
         List<Map<String, Object>> artists = (List<Map<String, Object>>) data.get("artists");
-        String artistName = (String) artists.get(0).get("name");
-
-        // 2. Tìm hoặc Tạo Artist
-        Artist artist = artistRepository.findByName(artistName)
-                .orElseGet(() -> {
-                    Artist newArtist = new Artist();
-                    newArtist.setName(artistName);
-                    newArtist.setUserId("spotify_import_" + System.currentTimeMillis());
-                    newArtist.setCreatedAt(LocalDateTime.now());
-                    newArtist.setVerified(true);
-                    return artistRepository.save(newArtist);
-                });
+        // 2. Tìm hoặc Tạo Artist(s)
+        List<String> artistIds = new ArrayList<>();
+        List<String> artistNames = new ArrayList<>();
+        if (artists != null) {
+            for (Map<String, Object> art : artists) {
+                String artName = (String) art.get("name");
+                Artist artist = artistRepository.findByName(artName)
+                        .orElseGet(() -> {
+                            Artist newArtist = new Artist();
+                            newArtist.setName(artName);
+                            newArtist.setCreatedAt(LocalDateTime.now());
+                            newArtist.setVerified(true);
+                            Artist saved = artistRepository.save(newArtist);
+                            try {
+                                spotifyService.syncFullArtistData(saved);
+                            } catch (Exception e) {
+                                System.err.println("Không thể đồng bộ ảnh artist: " + e.getMessage());
+                            }
+                            return artistRepository.findById(saved.getId()).orElse(saved);
+                        });
+                artistIds.add(artist.getId());
+                artistNames.add(artist.getName());
+            }
+        }
 
         // 3. Tạo Album
         Album album = new Album();
-        album.setTitle(albumTitle);
-        album.setArtistId(artist.getId());
-        album.setCoverUrl(coverUrl);
-        album.setStatus("PUBLISHED"); 
+        album.setName(albumTitle);
+        album.setArtistIds(artistIds);
+        album.setCoverImageUrl(coverUrl);
+        album.setAlbumType((String) data.get("album_type"));
+        Map<String, Object> externalUrls = (Map<String, Object>) data.get("external_urls");
+        if (externalUrls != null) {
+            album.setSpotifyUrl((String) externalUrls.get("spotify"));
+        }
+        album.setStatus("PUBLISHED");
         
         try {
             // Xử lý ngày tháng (Spotify trả về chuỗi, ta cần LocalDate)
@@ -90,7 +108,10 @@ public class AlbumServiceImpl implements AlbumService {
         for (Map<String, Object> item : items) {
             Song song = new Song();
             song.setTitle((String) item.get("name"));
-            song.setArtistId(artist.getId());
+            // Use the first artist ID from the list as the primary artist
+            if (!artistIds.isEmpty()) {
+                song.setArtistId(artistIds.get(0));
+            }
             song.setSpotifyId((String) item.get("id"));
             
             int durationMs = (Integer) item.get("duration_ms");
@@ -138,6 +159,7 @@ public class AlbumServiceImpl implements AlbumService {
     }
 
     @Override
+    @org.springframework.cache.annotation.CacheEvict(value = {"albumDetail", "home"}, allEntries = true)
     public AlbumDto updateAlbumStatus(String albumId, String status, String reason) {
         Album album = albumRepository.findById(albumId)
                 .orElseThrow(() -> new RuntimeException("Album not found"));
@@ -147,16 +169,19 @@ public class AlbumServiceImpl implements AlbumService {
     }
 
     @Override
+    @org.springframework.cache.annotation.CacheEvict(value = {"albumDetail", "home"}, allEntries = true)
     public AlbumDto approveAlbum(String albumId) {
         return updateAlbumStatus(albumId, "PUBLISHED", null);
     }
 
     @Override
+    @org.springframework.cache.annotation.CacheEvict(value = {"albumDetail", "home"}, allEntries = true)
     public AlbumDto rejectAlbum(String albumId, String reason) {
         return updateAlbumStatus(albumId, "REJECTED", reason);
     }
 
     @Override
+    @org.springframework.cache.annotation.Cacheable(value = "albumDetail", key = "#albumId")
     public AlbumDto getPublishedAlbumById(String albumId) {
         return convertToDto(albumRepository.findById(albumId).orElse(null));
     }
@@ -172,13 +197,14 @@ public class AlbumServiceImpl implements AlbumService {
         
         AlbumDto dto = new AlbumDto();
         dto.setId(album.getId());
-        dto.setTitle(album.getTitle());
-        dto.setCoverUrl(album.getCoverUrl());
+        dto.setTitle(album.getName());
+        dto.setCoverUrl(album.getCoverImageUrl());
         dto.setReleaseDate(album.getReleaseDate());
         dto.setStatus(album.getStatus());
 
-        if (album.getArtistId() != null) {
-            artistRepository.findById(album.getArtistId())
+        if (album.getArtistIds() != null && !album.getArtistIds().isEmpty()) {
+            String firstArtistId = album.getArtistIds().get(0);
+            artistRepository.findById(firstArtistId)
                     .ifPresentOrElse(
                         artist -> dto.setArtistName(artist.getName()),
                         () -> dto.setArtistName("Unknown")

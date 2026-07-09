@@ -242,27 +242,10 @@ public class AdminController {
 
     @PostMapping("/fix-empty-artists")
     public ResponseEntity<?> fixArtists() {
-        // 1. Lấy danh sách Entity (không dùng Dto ở đây để xử lý lưu cho chuẩn)
-        List<Artist> allArtists = artistRepository.findAll();
-        int count = 0;
 
-        for (Artist artist : allArtists) {
-            // Kiểm tra nếu thiếu ảnh
-            if (artist.getAvatarUrl() == null || artist.getAvatarUrl().isEmpty()) {
-                try {
-                    // SỬA TẠI ĐÂY: Gọi hàm đồng bộ theo Tên trong SpotifyService
-                    // Hàm này sẽ tự: Tìm ID thật -> Lấy Ảnh -> Lưu vào DB
-                    spotifyService.syncFullArtistData(artist);
+        int updated = spotifyService.fixArtists();
 
-                    System.out.println("✅ Đang xử lý: " + artist.getName());
-                    count++;
-                } catch (Exception e) {
-                    System.err.println("❌ Lỗi đồng bộ cho: " + artist.getName() + " - " + e.getMessage());
-                }
-            }
-        }
-
-        return ResponseEntity.ok("Đã xử lý đồng bộ cho " + count + " nghệ sĩ. Hãy reload lại trang web!");
+        return ResponseEntity.ok(
+                "Đã cập nhật " + updated + " artist.");
     }
-
 }

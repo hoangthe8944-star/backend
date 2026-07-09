@@ -35,7 +35,14 @@ public class CustomUserDetailsService implements UserDetailsService {
         // Lưu ý: Trong DB phải là "ROLE_ADMIN", nếu chỉ là "ADMIN" thì dòng này phải tự
         // thêm "ROLE_"
         List<GrantedAuthority> authorities = user.getRoles().stream()
-                .map(role -> new SimpleGrantedAuthority(role))
+                .filter(role -> role != null && !role.isEmpty())
+                .map(role -> {
+                    String r = role.toUpperCase();
+                    if (!r.startsWith("ROLE_")) {
+                        r = "ROLE_" + r;
+                    }
+                    return new SimpleGrantedAuthority(r);
+                })
                 .collect(Collectors.toList());
 
         // 3. Trả về UserDetails với đầy đủ cờ kích hoạt (Enabled = true)

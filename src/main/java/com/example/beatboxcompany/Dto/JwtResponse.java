@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -16,14 +17,15 @@ public class JwtResponse {
     private String id;
     private String username;
     private String email;
-    
-    // Đổi tên thành 'roles' để khớp với Frontend authapi.ts
     private List<String> roles; 
-    
-    // Thêm trường này để Frontend biết user đã được phép nghe nhạc chưa
     private boolean isVerified;
+    
+    // Premium fields
+    private boolean isPremium;
+    private String premiumType;
+    private LocalDateTime premiumExpiresAt;
 
-    // Constructor tùy chỉnh (nếu bạn không muốn dùng @AllArgsConstructor)
+    // Constructor tùy chỉnh
     public JwtResponse(String accessToken, String id, String username, String email, List<String> roles, boolean isVerified) {
         this.token = accessToken;
         this.id = id;
@@ -31,5 +33,17 @@ public class JwtResponse {
         this.email = email;
         this.roles = roles;
         this.isVerified = isVerified;
+    }
+
+    public JwtResponse(String accessToken, String id, String username, String email, List<String> roles, boolean isVerified, boolean isPremium, String premiumType, LocalDateTime premiumExpiresAt) {
+        this.token = accessToken;
+        this.id = id;
+        this.username = username;
+        this.email = email;
+        this.roles = roles;
+        this.isVerified = isVerified;
+        this.isPremium = isPremium;
+        this.premiumType = premiumType;
+        this.premiumExpiresAt = premiumExpiresAt;
     }
 }

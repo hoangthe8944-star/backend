@@ -58,8 +58,8 @@ public class CloudinaryService {
         // Xác định resource_type dựa trên loại nội dung
         String resourceType = "auto";
         if (originalContentType != null) {
-            if (originalContentType.startsWith("audio")) {
-                resourceType = "video"; // QUAN TRỌNG: file âm thanh phải là "video"
+            if (originalContentType.startsWith("audio") || originalContentType.startsWith("video")) {
+                resourceType = "video"; // QUAN TRỌNG: cả file âm thanh và video đều dùng "video"
             } else if (originalContentType.startsWith("image")) {
                 resourceType = "image";
             }

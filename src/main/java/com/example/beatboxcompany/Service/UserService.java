@@ -32,4 +32,7 @@ public interface UserService {
     
     // Lấy thông tin user hiện tại
     User getCurrentUser();
+
+    boolean isUserPremium(String userId);
+    void updateUserPremium(String userId, String premiumType, java.time.LocalDateTime expiresAt);
 }

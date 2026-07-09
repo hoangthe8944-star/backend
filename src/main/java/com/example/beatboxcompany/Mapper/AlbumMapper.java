@@ -50,7 +50,7 @@ public class AlbumMapper {
 
                         trackDto.setDurationText(String.format("%02d:%02d", m, s));
 
-                        trackDto.setIsExplicit(Boolean.TRUE.equals(song.getIsExplicit()));
+                        trackDto.setIsExplicit(Boolean.TRUE.equals(song.getExplicit()));
 
                         if (song.getFilePath() != null) {
                             trackDto.setStreamUrl(
@@ -75,9 +75,9 @@ public class AlbumMapper {
     public AlbumDto toSimpleDto(Album album) {
         AlbumDto dto = new AlbumDto();
         dto.setId(album.getId());
-        dto.setTitle(album.getTitle());
+        dto.setTitle(album.getName());
         dto.setReleaseDate(album.getReleaseDate());
-        dto.setCoverUrl(album.getCoverUrl());
+        dto.setCoverUrl(album.getCoverImageUrl());
         dto.setStatus(album.getStatus());
 
         // Map các trường thống kê (Khớp với AlbumDto đã sửa)
@@ -92,8 +92,8 @@ public class AlbumMapper {
         dto.setTotalStreams(0L); // Fake data hoặc tính tổng sau
 
         // Lấy tên Artist
-        if (album.getArtistId() != null) {
-            artistRepository.findById(album.getArtistId())
+        if (album.getArtistIds() != null && !album.getArtistIds().isEmpty()) {
+            artistRepository.findById(album.getArtistIds().get(0))
                     .ifPresentOrElse(
                             artist -> dto.setArtistName(artist.getName()),
                             () -> dto.setArtistName("Unknown Artist"));

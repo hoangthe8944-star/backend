@@ -12,7 +12,11 @@ public class ArtistMapper {
         dto.setName(artist.getName());
         dto.setBio(artist.getBio());
         dto.setAvatarUrl(artist.getAvatarUrl());
-        dto.setFollowerCount(artist.getFollowerCount());
+        dto.setImageUrl(artist.getImageUrl());
+        dto.setCoverImageUrl(artist.getCoverImageUrl());
+        dto.setFollowerCount(artist.getFollowers());
+        dto.setGenres(artist.getGenres());
+        dto.setVerified(artist.isVerified());
         return dto;
     }
     
@@ -21,6 +25,9 @@ public class ArtistMapper {
         existingArtist.setName(updateDto.getName());
         existingArtist.setBio(updateDto.getBio());
         existingArtist.setAvatarUrl(updateDto.getAvatarUrl());
+        existingArtist.setCoverImageUrl(updateDto.getCoverImageUrl());
+        existingArtist.setGenres(updateDto.getGenres());
+        existingArtist.setVerified(updateDto.isVerified());
         return existingArtist;
     }
 }

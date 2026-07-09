@@ -17,18 +17,21 @@ import java.util.ArrayList;
 public class Artist {
 
     @Id
-    private String id; // ID từ Spotify (ví dụ: 0TnOYISj6SdbuYM5fSsg8O)
+    private String id; // ID từ Spotify (ví dụ: 0TnOYISj6SdbuYM5fSsg8O) hoặc User ID nếu được admin tạo
 
     @Indexed(unique = true)
-    private String userId; // Link tới tài khoản User sở hữu hồ sơ này
+    private String spotifyId;
 
     private String name;
     private String bio;
+    private int popularity;
+    private String spotifyUrl;
 
     // --- CÁC TRƯỜNG ẢNH ---
     
     // 1. Ảnh đại diện chính (Thường lấy tấm images[1] - 320x320 hoặc images[0] - 640x640)
     private String avatarUrl;
+    private String imageUrl;
     
     // 2. Ảnh bìa lớn (Banner nằm ngang ở trang cá nhân nghệ sĩ)
     private String coverImageUrl; 
@@ -38,6 +41,7 @@ public class Artist {
     private List<String> images = new ArrayList<>();
 
     // --- THÔNG TIN KHÁC ---
+    private long followers = 0;
     private long followerCount = 0;
 
     // === KẾT NỐI VỚI CATEGORY ===
@@ -48,6 +52,7 @@ public class Artist {
     private LocalDateTime createdAt = LocalDateTime.now(); 
     private LocalDateTime updatedAt = LocalDateTime.now();
 
+    
     // Inner class nếu bạn muốn lưu chi tiết kích thước ảnh (Tùy chọn)
     /*
     @Data

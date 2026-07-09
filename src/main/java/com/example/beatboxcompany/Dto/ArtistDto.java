@@ -16,7 +16,9 @@ public class ArtistDto {
     private String bio;
     private List<String> genres;
     private String avatarUrl;
+    private String imageUrl;
     private String coverImageUrl;
     private long followerCount;
+    private boolean verified;
     // Lưu ý: KHÔNG trả về userId cho người dùng công cộng
 }

@@ -53,6 +53,11 @@ public class UserMapper {
         dto.setLikedSongs(user.getLikedSongs() != null ? user.getLikedSongs() : new ArrayList<>());
         dto.setFollowedArtists(user.getFollowedArtists() != null ? user.getFollowedArtists() : new ArrayList<>());
         
+        dto.setPremiumType(user.getPremiumType());
+        dto.setPremiumExpiresAt(user.getPremiumExpiresAt());
+        boolean isPremium = user.getPremiumExpiresAt() != null && user.getPremiumExpiresAt().isAfter(java.time.LocalDateTime.now());
+        dto.setPremium(isPremium);
+
         return dto;
     }
 }

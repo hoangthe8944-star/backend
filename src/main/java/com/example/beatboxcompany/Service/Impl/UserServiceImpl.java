@@ -11,6 +11,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -41,10 +42,13 @@ public class UserServiceImpl implements UserService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
         // 4. Set Role mặc định (Nếu Mapper chưa làm hoặc muốn chắc chắn)
-        // LƯU Ý: Sửa getRole() -> getRoles() và setRole() -> setRoles()
         if (user.getRoles() == null || user.getRoles().isEmpty()) {
             user.setRoles(List.of("ROLE_USER"));
         }
+
+        // Khởi tạo các giá trị mặc định cho Premium & Coin
+        user.setCoins(0L);
+        user.setLastAdAt(LocalDateTime.now());
 
         // 5. Lưu xuống DB
         User savedUser = userRepository.save(user);
@@ -110,6 +114,8 @@ public class UserServiceImpl implements UserService {
         newUser.setUsername(name);
         newUser.setRoles(Collections.singletonList("ROLE_USER"));
         newUser.setVerified(true); // Mặc định true vì tin tưởng Google
+        newUser.setCoins(0L);
+        newUser.setLastAdAt(LocalDateTime.now());
         
         return userRepository.save(newUser);
     }
@@ -124,5 +130,22 @@ public class UserServiceImpl implements UserService {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    @Override
+    public boolean isUserPremium(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return user.getPremiumExpiresAt() != null 
+                && user.getPremiumExpiresAt().isAfter(LocalDateTime.now());
+    }
+
+    @Override
+    public void updateUserPremium(String userId, String premiumType, LocalDateTime expiresAt) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setPremiumType(premiumType);
+        user.setPremiumExpiresAt(expiresAt);
+        userRepository.save(user);
     }
 }

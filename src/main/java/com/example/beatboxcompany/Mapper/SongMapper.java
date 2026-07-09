@@ -32,10 +32,10 @@ public class SongMapper {
         song.setCoverUrl(request.getCoverUrl());
 
         // Xử lý null cho List
-        song.setGenre(request.getGenre() != null ? request.getGenre() : Collections.emptyList());
+        song.setGenres(request.getGenre() != null ? request.getGenre() : Collections.emptyList());
 
         // Xử lý null cho Boolean
-        song.setIsExplicit(request.getIsExplicit() != null && request.getIsExplicit());
+        song.setExplicit(request.getIsExplicit() != null && request.getIsExplicit());
 
         song.setViewCount(0L);
         song.setStatus("PENDING");
@@ -64,9 +64,9 @@ public class SongMapper {
         // Map các trường tham chiếu (Bắt buộc SongDto phải có các trường này)
         dto.setArtistId(song.getArtistId());
         dto.setAlbumId(song.getAlbumId());
-        dto.setGenre(song.getGenre());
+        dto.setGenre(song.getGenres());
         dto.setViewCount(song.getViewCount());
-        dto.setIsExplicit(song.getIsExplicit());
+        dto.setIsExplicit(song.getExplicit());
         dto.setStatus(song.getStatus());
 
         // Lưu ý: Mapper này chưa map artistName và albumName vì không gọi Repository.

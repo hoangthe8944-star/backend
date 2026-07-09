@@ -26,4 +26,6 @@ public class SongDto {
     private List<String> genre;
     private Long viewCount;
     private Boolean isExplicit;
+    private String coverImageUrl;
+    private String audioUrl;
 }

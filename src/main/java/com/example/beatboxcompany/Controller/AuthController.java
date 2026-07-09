@@ -101,8 +101,10 @@ public class AuthController {
 
             // Tự động tạo Token để người dùng vào App ngay không cần login lại
             String token = jwtService.generateToken(user.getEmail());
+            boolean isPremium = user.getPremiumExpiresAt() != null && user.getPremiumExpiresAt().isAfter(LocalDateTime.now());
             return ResponseEntity.ok(new JwtResponse(
-                    token, user.getId(), user.getUsername(), user.getEmail(), user.getRoles(), true));
+                    token, user.getId(), user.getUsername(), user.getEmail(), user.getRoles(), true,
+                    isPremium, user.getPremiumType(), user.getPremiumExpiresAt()));
         }
 
         return ResponseEntity.badRequest().body("Mã OTP không chính xác hoặc đã hết hạn!");
@@ -145,8 +147,10 @@ public class AuthController {
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
 
         String token = jwtService.generateToken(user.getEmail());
+        boolean isPremium = user.getPremiumExpiresAt() != null && user.getPremiumExpiresAt().isAfter(LocalDateTime.now());
         return ResponseEntity
-                .ok(new JwtResponse(token, user.getId(), user.getUsername(), user.getEmail(), user.getRoles(), true));
+                .ok(new JwtResponse(token, user.getId(), user.getUsername(), user.getEmail(), user.getRoles(), true,
+                        isPremium, user.getPremiumType(), user.getPremiumExpiresAt()));
     }
 
     // ============================================================

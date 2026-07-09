@@ -17,6 +17,7 @@ import java.util.List;
 public class Song {
     @Id
     private String id;
+    
     @TextIndexed
     private String title;
     @TextIndexed
@@ -29,17 +30,18 @@ public class Song {
     private Long durationMs; // Đơn vị: mili-giây
 
     private String streamUrl; // Link ngoài (nếu có)
+    private String audioUrl;
     private String coverUrl;
+    private String coverImageUrl;
 
-    // Khởi tạo mặc định để tránh NullPointerException khi getGenre().add(...)
     @Builder.Default
-    private List<String> genre = new ArrayList<>();
+    private List<String> genres = new ArrayList<>();
 
     @Builder.Default
     private long viewCount = 0L;
 
     @Builder.Default
-    private Boolean isExplicit = false;
+    private Boolean explicit = false;
 
     @Builder.Default
     private String status = "PENDING";

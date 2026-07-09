@@ -19,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -56,6 +57,7 @@ public class SongServiceImpl implements SongService {
     // ... (Chúng đã được viết tốt và không cần thay đổi)
     @Override
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = {"trending", "songDetail", "home"}, allEntries = true)
     public Song createSong(String title, String artistName, String albumName,
             String coverUrl, Integer durationSec, String spotifyId,
             MultipartFile audioFile) {
@@ -71,20 +73,36 @@ public class SongServiceImpl implements SongService {
                 .orElseGet(() -> {
                     Artist newArtist = new Artist();
                     newArtist.setName(artistName);
-                    newArtist.setUserId("admin_import_" + UUID.randomUUID().toString());
+                    // newArtist.setUserId("admin_import_" + UUID.randomUUID().toString());
                     newArtist.setVerified(true);
                     newArtist.setCreatedAt(LocalDateTime.now());
-                    newArtist.setFollowerCount(0);
-                    return artistRepository.save(newArtist);
+                    newArtist.setFollowers(0);
+                    Artist saved = artistRepository.save(newArtist);
+                    try {
+                        spotifyService.syncFullArtistData(saved);
+                    } catch (Exception e) {
+                        System.err.println("Không thể đồng bộ ảnh artist: " + e.getMessage());
+                    }
+                    return artistRepository.findById(saved.getId()).orElse(saved);
                 });
 
+        if (artist.getGenres() == null || artist.getGenres().isEmpty()) {
+            try {
+                spotifyService.syncFullArtistData(artist);
+                artist = artistRepository.findById(artist.getId()).orElse(artist);
+            } catch (Exception e) {
+                System.err.println("Không thể đồng bộ bổ sung ảnh và genre cho artist đã tồn tại: " + e.getMessage());
+            }
+        }
+
         // 3. Xử lý Album
-        Album album = albumRepository.findByTitleAndArtistId(albumName, artist.getId())
+        final Artist finalArtist1 = artist;
+        Album album = albumRepository.findByNameAndArtistIdsContaining(albumName, finalArtist1.getId())
                 .orElseGet(() -> {
                     Album newAlbum = new Album();
-                    newAlbum.setTitle(albumName);
-                    newAlbum.setArtistId(artist.getId());
-                    newAlbum.setCoverUrl(coverUrl);
+                    newAlbum.setName(albumName);
+                    newAlbum.setArtistIds(List.of(finalArtist1.getId()));
+                    newAlbum.setCoverImageUrl(coverUrl);
                     newAlbum.setStatus("PUBLISHED");
                     newAlbum.setTotalTracks(0);
                     newAlbum.setTotalDurationMs(0L);
@@ -107,7 +125,7 @@ public class SongServiceImpl implements SongService {
         song.setFilePath(null); // Không dùng trường này nữa
         song.setStatus("PUBLISHED");
         song.setViewCount(0L);
-        song.setIsExplicit(false);
+        song.setExplicit(false);
         song.setCreatedAt(LocalDateTime.now());
         song.setArtistName(artist.getName());
 
@@ -127,6 +145,7 @@ public class SongServiceImpl implements SongService {
 
     @Override
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = {"trending", "songDetail", "home"}, allEntries = true)
     public void deleteSong(String id) {
         Song song = songRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bài hát với ID: " + id));
@@ -206,6 +225,7 @@ public class SongServiceImpl implements SongService {
 
     @Override
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = {"trending", "songDetail", "home"}, allEntries = true)
     public void bulkImportFromZip(MultipartFile zipFile) {
         try (ZipInputStream zis = new ZipInputStream(zipFile.getInputStream())) {
             ZipEntry zipEntry;
@@ -223,7 +243,16 @@ public class SongServiceImpl implements SongService {
     // ... các import và các phương thức khác giữ nguyên
 
     private void processSingleZipEntry(ZipInputStream zis, String entryName) throws IOException {
-        // Phần 1: Tách title và artist từ tên file - giữ nguyên
+        // Đọc toàn bộ file từ ZIP stream vào byte array trước
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        int len;
+        while ((len = zis.read(buffer)) > -1) {
+            baos.write(buffer, 0, len);
+        }
+        byte[] fileBytes = baos.toByteArray();
+
+        // Phần 1: Tách title và artist từ tên file làm phương án dự phòng (fallback)
         File fileObj = new File(entryName);
         String originalFileName = fileObj.getName();
         String nameWithoutExt = originalFileName.replaceAll("(?i)\\.mp3$", "");
@@ -241,9 +270,47 @@ public class SongServiceImpl implements SongService {
         if (artistSearch.isEmpty()) {
             titleSearch = nameWithoutExt.trim();
         }
+
+        // Đọc dữ liệu thẻ ID3 (Title và Contributing Artists) từ file mp3 bằng mp3agic
+        File tempFile = File.createTempFile("import-", ".mp3");
+        try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+            fos.write(fileBytes);
+        }
+
+        try {
+            com.mpatric.mp3agic.Mp3File mp3File = new com.mpatric.mp3agic.Mp3File(tempFile);
+            if (mp3File.hasId3v2Tag()) {
+                com.mpatric.mp3agic.ID3v2 id3v2Tag = mp3File.getId3v2Tag();
+                if (id3v2Tag.getTitle() != null && !id3v2Tag.getTitle().trim().isEmpty()) {
+                    titleSearch = id3v2Tag.getTitle().trim();
+                }
+                if (id3v2Tag.getArtist() != null && !id3v2Tag.getArtist().trim().isEmpty()) {
+                    artistSearch = id3v2Tag.getArtist().trim();
+                }
+            } else if (mp3File.hasId3v1Tag()) {
+                com.mpatric.mp3agic.ID3v1 id3v1Tag = mp3File.getId3v1Tag();
+                if (id3v1Tag.getTitle() != null && !id3v1Tag.getTitle().trim().isEmpty()) {
+                    titleSearch = id3v1Tag.getTitle().trim();
+                }
+                if (id3v1Tag.getArtist() != null && !id3v1Tag.getArtist().trim().isEmpty()) {
+                    artistSearch = id3v1Tag.getArtist().trim();
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Không thể đọc ID3 tags từ file: " + originalFileName + ", lỗi: " + e.getMessage());
+        } finally {
+            try {
+                if (tempFile.exists()) {
+                    tempFile.delete();
+                }
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+
         titleSearch = cleanTitle(titleSearch);
 
-        // Phần 2: Tìm metadata trên Spotify - giữ nguyên logic, chỉ lấy thông tin
+        // Phần 2: Tìm metadata trên Spotify
         String finalTitle = titleSearch;
         String finalArtist = artistSearch.isEmpty() ? "Unknown Artist" : artistSearch;
         String finalAlbum = "Single";
@@ -281,26 +348,17 @@ public class SongServiceImpl implements SongService {
         }
 
         // =========================================================================
-        // [THAY ĐỔI] KIỂM TRA DỮ LIỆU TRÙNG LẶP TRƯỚC KHI UPLOAD VÀ LƯU
+        // KIỂM TRA DỮ LIỆU TRÙNG LẶP TRƯỚC KHI UPLOAD VÀ LƯU
         // =========================================================================
         if (songRepository.existsByTitleIgnoreCaseAndArtistNameIgnoreCase(finalTitle, finalArtist)) {
             System.out.println("Bỏ qua bài hát trùng lặp: '" + finalTitle + "' - '" + finalArtist + "'");
-            return; // Dừng xử lý file này và chuyển sang file tiếp theo trong ZIP
+            return;
         }
 
-        // Phần 3: Đọc file từ ZIP stream vào byte array (giữ nguyên)
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        byte[] buffer = new byte[8192];
-        int len;
-        while ((len = zis.read(buffer)) > -1) {
-            baos.write(buffer, 0, len);
-        }
-        byte[] fileBytes = baos.toByteArray();
-
-        // Phần 4: Upload file lên Cloudinary (giữ nguyên)
+        // Phần 4: Upload file lên Cloudinary
         UploadResultDto uploadResult = cloudinaryService.uploadFileBytes(fileBytes, "audio", "audio/mpeg");
 
-        // Phần 5: Lưu vào DB (giữ nguyên)
+        // Phần 5: Lưu vào DB
         saveSongToDb(finalTitle, finalArtist, finalAlbum, coverUrl, durationSec, spotifyId,
                 uploadResult.getSecureUrl(), uploadResult.getPublicId());
     }
@@ -313,20 +371,36 @@ public class SongServiceImpl implements SongService {
                 .orElseGet(() -> {
                     Artist newArtist = new Artist();
                     newArtist.setName(artistName);
-                    newArtist.setUserId("bulk_" + UUID.randomUUID().toString());
+                    // newArtist.setUserId("bulk_" + UUID.randomUUID().toString());
                     newArtist.setVerified(true);
                     newArtist.setCreatedAt(LocalDateTime.now());
-                    newArtist.setFollowerCount(0);
-                    return artistRepository.save(newArtist);
+                    newArtist.setFollowers(0);
+                    Artist saved = artistRepository.save(newArtist);
+                    try {
+                        spotifyService.syncFullArtistData(saved);
+                    } catch (Exception e) {
+                        System.err.println("Không thể đồng bộ ảnh artist: " + e.getMessage());
+                    }
+                    return artistRepository.findById(saved.getId()).orElse(saved);
                 });
 
+        if (artist.getGenres() == null || artist.getGenres().isEmpty()) {
+            try {
+                spotifyService.syncFullArtistData(artist);
+                artist = artistRepository.findById(artist.getId()).orElse(artist);
+            } catch (Exception e) {
+                System.err.println("Không thể đồng bộ bổ sung ảnh và genre cho artist đã tồn tại: " + e.getMessage());
+            }
+        }
+
         // Tìm hoặc tạo Album
-        Album album = albumRepository.findByTitleAndArtistId(albumName, artist.getId())
+        final Artist finalArtist2 = artist;
+        Album album = albumRepository.findByNameAndArtistIdsContaining(albumName, finalArtist2.getId())
                 .orElseGet(() -> {
                     Album newAlbum = new Album();
-                    newAlbum.setTitle(albumName);
-                    newAlbum.setArtistId(artist.getId());
-                    newAlbum.setCoverUrl(coverUrl);
+                    newAlbum.setName(albumName);
+                    newAlbum.setArtistIds(List.of(finalArtist2.getId()));
+                    newAlbum.setCoverImageUrl(coverUrl);
                     newAlbum.setStatus("PUBLISHED");
                     newAlbum.setCreatedAt(LocalDateTime.now());
                     newAlbum.setUpdatedAt(LocalDateTime.now());
@@ -362,10 +436,19 @@ public class SongServiceImpl implements SongService {
 
     @Override
     public List<SongDto> getSongsByStatus(String status) {
+        if ("PUBLISHED".equals(status)) {
+            List<Song> published = songRepository.findByStatus("PUBLISHED");
+            List<Song> success = songRepository.findByStatus("SUCCESS");
+            List<Song> all = new ArrayList<>();
+            if (published != null) all.addAll(published);
+            if (success != null) all.addAll(success);
+            return all.stream().map(this::convertToDto).collect(Collectors.toList());
+        }
         return songRepository.findByStatus(status).stream().map(this::convertToDto).collect(Collectors.toList());
     }
 
     @Override
+    @org.springframework.cache.annotation.CacheEvict(value = {"trending", "songDetail", "home"}, allEntries = true)
     public SongDto updateStatus(String songId, String newStatus) {
         Song song = songRepository.findById(songId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bài hát: " + songId));
@@ -393,6 +476,7 @@ public class SongServiceImpl implements SongService {
     }
 
     @Override
+    @org.springframework.cache.annotation.Cacheable(value = "songDetail", key = "#id")
     public SongDto getPublishedSongById(String id) {
         Song song = songRepository.findById(id).orElseThrow(() -> new RuntimeException("Song not found"));
         return convertToDto(song);
@@ -408,8 +492,14 @@ public class SongServiceImpl implements SongService {
     }
 
     @Override
+    @org.springframework.cache.annotation.Cacheable(value = "trending", key = "#limit")
     public List<SongDto> getTrendingPublishedSongs(int limit) {
-        return songRepository.findByStatus("PUBLISHED").stream()
+        List<Song> published = songRepository.findByStatus("PUBLISHED");
+        List<Song> success = songRepository.findByStatus("SUCCESS");
+        List<Song> all = new ArrayList<>();
+        if (published != null) all.addAll(published);
+        if (success != null) all.addAll(success);
+        return all.stream()
                 .sorted((s1, s2) -> Long.compare(s2.getViewCount(), s1.getViewCount()))
                 .limit(limit)
                 .map(this::convertToDto)
@@ -429,11 +519,11 @@ public class SongServiceImpl implements SongService {
     @Override
     public List<SongDto> searchPublicSongs(String query) {
         // Bước 1: Thử tìm nghệ sĩ có tên khớp (không phân biệt hoa thường)
-        Optional<Artist> artistOptional = artistRepository.findByNameIgnoreCase(query);
+        List<Artist> artists = artistRepository.findByNameIgnoreCase(query);
 
         // Bước 2: Nếu tìm thấy, trả về tất cả bài hát của họ
-        if (artistOptional.isPresent()) {
-            Artist artist = artistOptional.get();
+        if (artists != null && !artists.isEmpty()) {
+            Artist artist = artists.get(0);
             return songRepository.findByArtistId(artist.getId()).stream()
                     .map(this::convertToDto)
                     .collect(Collectors.toList());
@@ -459,11 +549,11 @@ public class SongServiceImpl implements SongService {
         }
 
         // Bước 1: Thử tìm nghệ sĩ có tên khớp
-        Optional<Artist> artistOptional = artistRepository.findByNameIgnoreCase(query);
+        List<Artist> artists = artistRepository.findByNameIgnoreCase(query);
 
         // Bước 2: Nếu tìm thấy nghệ sĩ, lọc bài hát của họ theo category
-        if (artistOptional.isPresent()) {
-            Artist artist = artistOptional.get();
+        if (artists != null && !artists.isEmpty()) {
+            Artist artist = artists.get(0);
             return songRepository.findByArtistId(artist.getId()).stream()
                     .filter(song -> categoryId.equals(song.getCategoryId()))
                     .map(this::convertToDto)
@@ -519,12 +609,14 @@ public class SongServiceImpl implements SongService {
         dto.setId(song.getId());
         dto.setTitle(song.getTitle());
         dto.setCoverUrl(song.getCoverUrl());
+        dto.setCoverImageUrl(song.getCoverImageUrl());
         dto.setDuration(song.getDuration());
         dto.setStatus(song.getStatus());
         dto.setViewCount(song.getViewCount());
-        dto.setIsExplicit(song.getIsExplicit());
-        dto.setGenre(song.getGenre());
+        dto.setIsExplicit(song.getExplicit());
+        dto.setGenre(song.getGenres());
         dto.setStreamUrl(song.getStreamUrl());
+        dto.setAudioUrl(song.getAudioUrl());
 
         if (song.getArtistId() != null) {
             artistRepository.findById(song.getArtistId())
@@ -536,7 +628,7 @@ public class SongServiceImpl implements SongService {
 
         if (song.getAlbumId() != null) {
             albumRepository.findById(song.getAlbumId())
-                    .ifPresentOrElse(album -> dto.setAlbumName(album.getTitle()),
+                    .ifPresentOrElse(album -> dto.setAlbumName(album.getName()),
                             () -> dto.setAlbumName("Single"));
         } else {
             dto.setAlbumName("Single");

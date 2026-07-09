@@ -31,4 +31,8 @@ public class UserDto {
     //     this.email = email;
     //     this.roles = roles;
     // }
+
+    private String premiumType;
+    private java.time.LocalDateTime premiumExpiresAt;
+    private boolean isPremium;
 }

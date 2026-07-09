@@ -155,6 +155,12 @@ public class UserController {
                 userInfo.put("username", user.getUsername());
                 userInfo.put("roles", user.getAuthorities());
                 userInfo.put("isVerified", user.isVerified());
+                
+                boolean isPremium = user.getPremiumExpiresAt() != null && user.getPremiumExpiresAt().isAfter(java.time.LocalDateTime.now());
+                userInfo.put("isPremium", isPremium);
+                userInfo.put("premiumType", user.getPremiumType());
+                userInfo.put("premiumExpiresAt", user.getPremiumExpiresAt());
+
                 return ResponseEntity.ok(userInfo);
             } else {
                 System.err.println("===> USER CONTROLLER DEBUG: Không tìm thấy bất kỳ User nào khớp với: " + searchKey);

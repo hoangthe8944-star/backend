@@ -45,13 +45,14 @@ public class ArtistServiceImpl implements ArtistService {
 
     @Override
     @PreAuthorize("hasRole('ADMIN')")
+    @org.springframework.cache.annotation.CacheEvict(value = {"artistDetail", "artistsPopular", "home"}, allEntries = true)
     public ArtistDto createArtistByAdmin(String userId, String artistName) {
-        if (artistRepository.findByUserId(userId).isPresent()) {
+        if (artistRepository.findById(userId).isPresent()) {
             throw new RuntimeException("Người dùng này đã có hồ sơ nghệ sĩ!");
         }
 
         Artist artist = new Artist();
-        artist.setUserId(userId);
+        artist.setId(userId);
         artist.setName(artistName);
         artist.setCreatedAt(LocalDateTime.now());
         artist.setVerified(true);
@@ -66,6 +67,7 @@ public class ArtistServiceImpl implements ArtistService {
 
     // --- LOGIC ĐỒNG BỘ TOÀN DIỆN TỪ SPOTIFY (Ảnh, Thể loại, Follower) ---
     @Override
+    @org.springframework.cache.annotation.CacheEvict(value = {"artistDetail", "artistsPopular", "home"}, allEntries = true)
     public ArtistDto syncArtistFromSpotify(String artistId, String spotifyArtistId) {
         // 1. Tìm Artist trong DB của bạn (ví dụ cái bản ghi Ariana Grande đang trống
         // kia)
@@ -101,7 +103,7 @@ public class ArtistServiceImpl implements ArtistService {
             // 5. Cập nhật Follower
             if (details.containsKey("followers")) {
                 Map<String, Object> followers = (Map<String, Object>) details.get("followers");
-                artist.setFollowerCount(Long.valueOf(followers.get("total").toString()));
+                artist.setFollowers((int) Long.parseLong(followers.get("total").toString()));
             }
 
             artist.setUpdatedAt(LocalDateTime.now());
@@ -118,6 +120,7 @@ public class ArtistServiceImpl implements ArtistService {
     }
 
     @Override
+    @org.springframework.cache.annotation.Cacheable(value = "artistDetail", key = "#artistId")
     public ArtistDto getPublicArtistProfile(String artistId) {
         Artist artist = artistRepository.findById(artistId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hồ sơ nghệ sĩ!"));
@@ -126,14 +129,15 @@ public class ArtistServiceImpl implements ArtistService {
 
     @Override
     public ArtistDto getCurrentArtistProfile(String userId) {
-        Artist artist = artistRepository.findByUserId(userId)
+        Artist artist = artistRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Bạn chưa tạo hồ sơ nghệ sĩ!"));
         return ArtistMapper.toDto(artist);
     }
 
     @Override
+    @org.springframework.cache.annotation.CacheEvict(value = {"artistDetail", "artistsPopular", "home"}, allEntries = true)
     public ArtistDto updateArtistProfile(String userId, ArtistDto updateDto) {
-        Artist existingArtist = artistRepository.findByUserId(userId)
+        Artist existingArtist = artistRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Không có quyền chỉnh sửa hồ sơ này!"));
 
         Artist updatedArtist = ArtistMapper.updateEntity(existingArtist, updateDto);
@@ -158,6 +162,7 @@ public class ArtistServiceImpl implements ArtistService {
     }
 
     @Override
+    @org.springframework.cache.annotation.Cacheable(value = "artistsPopular")
     public List<ArtistDto> getAllArtists() {
         return artistRepository.findAll().stream()
                 .map(ArtistMapper::toDto)
@@ -165,6 +170,7 @@ public class ArtistServiceImpl implements ArtistService {
     }
 
     @Override
+    @org.springframework.cache.annotation.CacheEvict(value = {"artistDetail", "artistsPopular", "home"}, allEntries = true)
     public ArtistDto adminUpdateName(String artistId, String newName) {
         Artist artist = artistRepository.findById(artistId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy Artist"));
@@ -188,7 +194,7 @@ public List<SongDto> getSongsByArtistId(String artistId) {
             // map albumName
             if (song.getAlbumId() != null) {
                 albumRepository.findById(song.getAlbumId())
-                    .ifPresent(album -> dto.setAlbumName(album.getTitle()));
+                    .ifPresent(album -> dto.setAlbumName(album.getName()));
             }
 
             return dto;
@@ -200,7 +206,7 @@ public List<SongDto> getSongsByArtistId(String artistId) {
     @Override
     public List<AlbumDto> getAlbumsByArtistId(String artistId) {
         // Tìm các album của nghệ sĩ
-        return albumRepository.findByArtistId(artistId).stream()
+        return albumRepository.findByArtistIdsContaining(artistId).stream()
                 .map(albumMapper::toFullDto)
                 .collect(Collectors.toList());
     }

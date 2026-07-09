@@ -7,8 +7,8 @@ import java.util.Optional;
 public interface AlbumRepository extends MongoRepository<Album, String> {
     List<Album> findByStatus(String status);
 
-    List<Album> findByArtistId(String artistId);
+    List<Album> findByArtistIdsContaining(String artistId);
 
-    Optional<Album> findByTitleAndArtistId(String title, String artistId);
+    Optional<Album> findByNameAndArtistIdsContaining(String name, String artistId);
     
 }

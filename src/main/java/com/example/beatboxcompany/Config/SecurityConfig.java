@@ -7,6 +7,7 @@ import com.example.beatboxcompany.Security.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -68,11 +69,13 @@ public class SecurityConfig {
                                                 .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
 
                                 .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                                                 .requestMatchers("/api/auth/**", "/api/public/**", "/api/songs/**",
                                                                 "/api/v1/lyrics/**", "/api/playlists/**",
-                                                                "/api/history/**", "/api/ai/**",
-                                                                "/api/categories/**", "/api/artists/**")
+                                                                "/api/history/**", "/api/ai/**", "/api/follows/**", "/api/search/**",
+                                                                "/api/categories/**", "/api/artists/**", "/api/albums/**", "/api/lyrics/**",
+                                                                "/api/podcasts/**")
                                                 .permitAll()
 
                                                 // Live APIs

@@ -28,6 +28,9 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import java.io.IOException;
 
+import com.example.beatboxcompany.Dto.HomeResponseDto;
+import com.example.beatboxcompany.Service.HomeService;
+
 @RestController
 @RequestMapping("/api/public")
 public class PublicController {
@@ -38,6 +41,7 @@ public class PublicController {
     private final CommentService commentService;
     private final SongRepository songRepository;
     private final ArtistService artistService;
+    private final HomeService homeService;
 
     // Đường dẫn file nhạc để stream (Giữ lại theo yêu cầu)
     private final Path fileStorageLocation = Paths.get("uploads").toAbsolutePath().normalize();
@@ -48,16 +52,23 @@ public class PublicController {
             PlaylistService playlistService,
             SongRepository songRepository,
             CommentService commentService,
-            ArtistService artistService) {
+            ArtistService artistService,
+            HomeService homeService) {
         this.songService = songService;
         this.albumService = albumService;
         this.playlistService = playlistService;
         this.commentService = commentService;
         this.songRepository = songRepository;
         this.artistService = artistService;
+        this.homeService = homeService;
     }
 
     // --- 1. Tìm kiếm và Trending ---
+
+    @GetMapping("/home")
+    public ResponseEntity<HomeResponseDto> getHomeData() {
+        return ResponseEntity.ok(homeService.getHomeData());
+    }
 
     /**
      * [ĐÃ CHỈNH SỬA]
@@ -66,17 +77,22 @@ public class PublicController {
      * Hỗ trợ lọc theo thể loại (category) nếu có categoryId.
      */
     @GetMapping("/search")
-    public ResponseEntity<List<SongDto>> search(
+    public ResponseEntity<?> search(
             @RequestParam("q") String query,
             @RequestParam(value = "categoryId", required = false) String categoryId) {
+        try {
+            // Nếu có categoryId, gọi hàm search có lọc
+            if (categoryId != null && !categoryId.trim().isEmpty()) {
+                return ResponseEntity.ok(songService.searchPublicSongs(query, categoryId));
+            }
 
-        // Nếu có categoryId, gọi hàm search có lọc
-        if (categoryId != null && !categoryId.trim().isEmpty()) {
-            return ResponseEntity.ok(songService.searchPublicSongs(query, categoryId));
+            // Nếu không có categoryId, gọi hàm search thông thường
+            return ResponseEntity.ok(songService.searchPublicSongs(query));
+        } catch (Exception e) {
+            e.printStackTrace(); // In ra console Spring Boot để bạn xem
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi Server: " + e.getMessage());
         }
-
-        // Nếu không có categoryId, gọi hàm search thông thường
-        return ResponseEntity.ok(songService.searchPublicSongs(query));
     }
 
     @GetMapping("/songs/trending")

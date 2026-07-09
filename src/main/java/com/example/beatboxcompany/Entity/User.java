@@ -42,8 +42,14 @@ public class User implements UserDetails {
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return roles.stream()
-                .filter(role -> role != null && !role.isEmpty()) // ✅ Lọc bỏ null/rỗng
-                .map(role -> new SimpleGrantedAuthority(role)) // Không được để role là ""
+                .filter(role -> role != null && !role.isEmpty())
+                .map(role -> {
+                    String r = role.toUpperCase();
+                    if (!r.startsWith("ROLE_")) {
+                        r = "ROLE_" + r;
+                    }
+                    return new SimpleGrantedAuthority(r);
+                })
                 .collect(Collectors.toList());
     }
 
@@ -51,4 +57,8 @@ public class User implements UserDetails {
     private LocalDateTime otpExpiry;
     private boolean enabled = false; 
     private Long coins = 0L;
+
+    private String premiumType;
+    private LocalDateTime premiumExpiresAt;
+    private LocalDateTime lastAdAt;
 }

@@ -158,6 +158,19 @@
         <version>1.15</version>
     </dependency>
 		<!-- Zego Server Assistant -->
+		
+		<!-- mp3agic for reading ID3 metadata tags -->
+		<dependency>
+			<groupId>com.mpatric</groupId>
+			<artifactId>mp3agic</artifactId>
+			<version>0.9.1</version>
+		</dependency>
+
+		<!-- Spring Boot Starter Data Redis -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
+		</dependency>
 
 	</dependencies>
 

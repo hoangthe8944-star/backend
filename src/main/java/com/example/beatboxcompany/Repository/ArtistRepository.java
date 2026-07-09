@@ -10,14 +10,10 @@ import java.util.Optional;
 @Repository
 public interface ArtistRepository extends MongoRepository<Artist, String> {
 
-    // Tìm hồ sơ Artist dựa trên ID tài khoản User quản lý (cần thiết cho việc chỉnh
-    // sửa)
-    Optional<Artist> findByUserId(String userId);
-
     // Tìm hồ sơ Artist dựa trên tên công khai (ví dụ: cần cho Search)
     Optional<Artist> findByName(String name);
 
-    Optional<Artist> findByNameIgnoreCase(String name);
+    List<Artist> findByNameIgnoreCase(String name);
 
     List<Artist> findByGenresContaining(String genre);
 

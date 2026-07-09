@@ -81,6 +81,7 @@ public class PlaylistServiceImpl implements PlaylistService {
 
     // ----- Tạo playlist -----
     @Override
+    @org.springframework.cache.annotation.CacheEvict(value = {"playlistsFeatured", "home"}, allEntries = true)
     public PlaylistDto createPlaylist(PlaylistRequest request, String ownerId, boolean isAdmin) {
         if ("system".equals(request.getType()) && !isAdmin) {
             throw new SecurityException("Chỉ admin mới được tạo playlist hệ thống");
@@ -100,6 +101,7 @@ public class PlaylistServiceImpl implements PlaylistService {
 
     // ----- Cập nhật playlist -----
     @Override
+    @org.springframework.cache.annotation.CacheEvict(value = {"playlistDetail", "playlistsFeatured", "home"}, allEntries = true)
     public PlaylistDto updatePlaylist(String playlistId, PlaylistRequest request, String currentUserId, boolean isAdmin) {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new RuntimeException("Playlist không tồn tại"));
@@ -127,6 +129,7 @@ public class PlaylistServiceImpl implements PlaylistService {
 
     // ----- Lấy chi tiết playlist public -----
     @Override
+    @org.springframework.cache.annotation.Cacheable(value = "playlistDetail", key = "#playlistId")
     public PlaylistDto getPublicPlaylistDetails(String playlistId) {
         Playlist playlist = playlistRepository.findByIdAndPublicPlaylist(playlistId, true)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy Playlist công khai này!"));
@@ -135,6 +138,7 @@ public class PlaylistServiceImpl implements PlaylistService {
 
     // ----- Lấy danh sách tất cả playlist public -----
     @Override
+    @org.springframework.cache.annotation.Cacheable(value = "playlistsFeatured")
     public List<PlaylistDto> getPublicPlaylists() {
         return playlistRepository.findByPublicPlaylist(true).stream()
                 .map(this::enrichPlaylistDto)
@@ -143,6 +147,7 @@ public class PlaylistServiceImpl implements PlaylistService {
 
     // ----- Thêm track vào playlist -----
     @Override
+    @org.springframework.cache.annotation.CacheEvict(value = {"playlistDetail", "playlistsFeatured", "home"}, allEntries = true)
     public PlaylistDto addTrackToPlaylist(String playlistId, String trackId, String currentUserId, boolean isAdmin) {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new RuntimeException("Playlist không tồn tại"));
@@ -162,6 +167,7 @@ public class PlaylistServiceImpl implements PlaylistService {
 
     // ----- Xóa track khỏi playlist -----
     @Override
+    @org.springframework.cache.annotation.CacheEvict(value = {"playlistDetail", "playlistsFeatured", "home"}, allEntries = true)
     public PlaylistDto removeTrackFromPlaylist(String playlistId, String trackId, String currentUserId) {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new RuntimeException("Playlist không tồn tại."));
@@ -180,6 +186,7 @@ public class PlaylistServiceImpl implements PlaylistService {
 
     // ----- Xóa playlist -----
     @Override
+    @org.springframework.cache.annotation.CacheEvict(value = {"playlistDetail", "playlistsFeatured", "home"}, allEntries = true)
     public void deletePlaylist(String playlistId, String currentUserId, boolean isAdmin) {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new RuntimeException("Playlist không tồn tại."));
